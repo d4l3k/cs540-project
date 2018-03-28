@@ -3,11 +3,13 @@ import bayes_opt
 import numpy as np
 import scipy.optimize
 import hyperopt
+from sparklines import sparklines
+from tabulate import tabulate
 
 model = catboost.CatBoostRegressor()
 model.load_model('deathrate.cbm')
 
-init_years = 2
+init_years = 3
 num_years = 10
 sample_points = 100
 
@@ -17,13 +19,17 @@ def report(method, data):
     results += [(method, data)]
     print_result(method, data)
 
-def print_result(method, data):
-    print('{} - {} dead over {} years'.format(method, np.sum(abs(data)), len(data)))
+def format_result(method, data):
+    return [method, np.sum(abs(data)), len(data), '\n'.join(sparklines(data))]
+
+def print_result_table(table):
+    print(tabulate(table, headers=['Method', 'Dead per 1000', 'Years', 'Distribution']))
+
+def print_result(*args):
+    print_result_table([format_result(*args)])
 
 def print_results():
-    global results
-    for method, data in results:
-        print_result(method, data)
+    print_result_table([format_result(*res) for res in results])
 
 bounds = np.array([(0, 14.06), (2.23, 17.14), (0.02, 4.41), (0.13, 14.81)])
 random_state = np.random.RandomState()
