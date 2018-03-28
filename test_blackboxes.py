@@ -23,7 +23,7 @@ def report(*args):
 
 
 def format_result(method, data, time_taken):
-    return [method, np.sum(abs(data)), data[len(data)-1], len(data),
+    return [method, np.sum(data), data[len(data)-1], len(data),
             '\n'.join(sparklines(data)), time_taken]
 
 
@@ -70,7 +70,7 @@ bo = bayes_opt.BayesianOptimization(
     {'a': bounds[0], 'b': bounds[1], 'c': bounds[2], 'd': bounds[3]},
 )
 bo.maximize(init_points=init_years, n_iter=num_years)
-report('Bayesian Optimization', bo.Y[init_years:], time.clock() - start)
+report('Bayesian Optimization', -bo.Y[init_years:], time.clock() - start)
 
 # RandomSearch
 start = time.clock()
