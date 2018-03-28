@@ -51,9 +51,14 @@ train_pool = catboost.Pool(X, Y)
 
 model = catboost.CatBoostRegressor()
 model.fit(train_pool)
+model.save_model('deathrate.cbm')
 
 training_error = sum((model.predict(train_pool) - Y)**2)/len(Y)
 
 print('model training error = {}'.format(training_error))
+
+maxes = np.max(X,axis=0)
+mins = np.min(X,axis=0)
+print('input {}, max = {}, min = {}'.format(source_indicators, maxes, mins))
 
 import ipdb; ipdb.set_trace()

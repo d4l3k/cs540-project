@@ -2,3 +2,4 @@ catboost==0.6.3
 wbdata==0.2.7
 redis==2.10.6
 ipdb==0.11
+bayesian-optimization==v0.6.0
