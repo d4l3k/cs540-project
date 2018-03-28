@@ -46,7 +46,7 @@ random_state = np.random.RandomState()
 # TODO: give a realistic initialization point
 
 # Tree of Parzen Estimators
-start = time.clock()
+start = time.time()
 x = []
 
 
@@ -61,25 +61,25 @@ hyperopt.fmin(tpe_objective, space=[
     for i, bound in enumerate(bounds)
 ], algo=hyperopt.tpe.suggest, max_evals=(num_years+init_years))
 
-report('Tree of Parzen Estimators', model.predict(x)[init_years:], time.clock() - start)
+report('Tree of Parzen Estimators', model.predict(x)[init_years:], time.time() - start)
 
 # Bayesian Optimization
-start = time.clock()
+start = time.time()
 bo = bayes_opt.BayesianOptimization(
     lambda a, b, c, d: -model.predict([[a, b, c, d]])[0],
     {'a': bounds[0], 'b': bounds[1], 'c': bounds[2], 'd': bounds[3]},
 )
 bo.maximize(init_points=init_years, n_iter=num_years)
-report('Bayesian Optimization', -bo.Y[init_years:], time.clock() - start)
+report('Bayesian Optimization', -bo.Y[init_years:], time.time() - start)
 
 # RandomSearch
-start = time.clock()
+start = time.time()
 x_tries = random_state.uniform(bounds[:, 0], bounds[:, 1], size=(num_years, bounds.shape[0]))
 y = model.predict(x_tries)
-report('Random Search', y, time.clock() - start)
+report('Random Search', y, time.time() - start)
 
 # GBDT
-start = time.clock()
+start = time.time()
 def random_points(n):
     return random_state.uniform(bounds[:, 0], bounds[:, 1], size=(n, bounds.shape[0]))
 
@@ -100,7 +100,7 @@ for i in range(num_years):
     y_tmp = model.predict([best_x])
     y = np.append(y, y_tmp)
 
-report('GBDT', y[init_years:], time.clock() - start)
+report('GBDT', y[init_years:], time.time() - start)
 
 print_results()
 
