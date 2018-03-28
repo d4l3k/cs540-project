@@ -8,6 +8,7 @@ model.load_model('deathrate.cbm')
 
 init_years = 2
 num_years = 10
+sample_points = 100
 
 results = []
 def report(method, data):
@@ -24,7 +25,6 @@ random_state = np.random.RandomState()
 
 # TODO: give a realistic initialization point
 
-"""
 # Bayesian Optimization
 bo = bayes_opt.BayesianOptimization(
     lambda a, b, c, d: -model.predict([[a, b, c, d]])[0],
@@ -37,7 +37,6 @@ report('BayesianOptimization', bo.Y[init_years:])
 x_tries = random_state.uniform(bounds[:, 0], bounds[:, 1], size=(num_years, bounds.shape[0]))
 y = model.predict(x_tries)
 report('RandomSearch', y)
-"""
 
 # GBDT
 def random_points(n):
@@ -48,14 +47,16 @@ y = model.predict(x)
 gbdt_model = catboost.CatBoostRegressor()
 for i in range(num_years):
     gbdt_model.fit(x, y)
-    # TODO try a bunch of seeds
-    res = scipy.optimize.minimize(lambda x: gbdt_model.predict([x])[0], random_points(1)[0], bounds=bounds)
-    if not res.success:
-        continue
-    x = np.append(x, [res.x], axis=0)
-    print('x = {}, y = {}'.format(x, y))
-    y_tmp = model.predict([res.x])
-    print(res.x, y_tmp)
+    x_tmps = []
+    for test_x in random_points(sample_points):
+        res = scipy.optimize.minimize(lambda x: gbdt_model.predict([x])[0], test_x, bounds=bounds)
+        if not res.success:
+            continue
+        x_tmps += [res.x]
+    best_i = np.argmin(gbdt_model.predict(x_tmps))
+    best_x = x_tmps[best_i]
+    x = np.append(x, [best_x], axis=0)
+    y_tmp = model.predict([best_x])
     y = np.append(y, y_tmp)
 
 report('GBDT', y[init_years:])
