@@ -9,8 +9,8 @@ from tabulate import tabulate
 model = catboost.CatBoostRegressor()
 model.load_model('deathrate.cbm')
 
-init_years = 3
-num_years = 10
+init_years = 5
+num_years = 20
 sample_points = 100
 
 results = []
