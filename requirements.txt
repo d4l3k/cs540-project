@@ -3,6 +3,6 @@ wbdata
 redis
 ipdb
 bayesian-optimization
-hyperopt
-sparklines
+hyperopt # install from master
+sparklines # requires future to be installed
 tabulate
