@@ -30,8 +30,19 @@ component, and possibly to explore other more interesting generative approaches.
 
 ## Tree of Parzen Estimators
 
+Parzen estimators extend the Parzen window method in a logical way (1). The simple
+method is to pick a single model over the whole data range. The tree structure
+means picking one model for all data points where the model has low enough
+error, and picking a different model or set of models for the rest. In this way,
+TPE is kind of a blend of decision trees and the kernel method.
+
 ## Bayesian Optimization
 
 ## Random Search
 
 ## Gradient-Boosted Decision Trees
+
+# Citations
+
+1. Bergstra, James S., et al. "Algorithms for hyper-parameter optimization."
+   Advances in neural information processing systems. 2011.
