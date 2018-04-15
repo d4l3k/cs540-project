@@ -72,7 +72,7 @@ bo = bayes_opt.BayesianOptimization(
 bo.maximize(init_points=init_years, n_iter=num_years)
 report('Bayesian Optimization', -bo.Y[init_years:], time.time() - start)
 
-# RandomSearch
+# RandomSearch (baseline, every model should do better than this)
 start = time.time()
 x_tries = random_state.uniform(bounds[:, 0], bounds[:, 1], size=(num_years, bounds.shape[0]))
 y = model.predict(x_tries)

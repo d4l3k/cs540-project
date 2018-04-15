@@ -30,24 +30,27 @@ component, and possibly to explore other more interesting generative approaches.
 
 ## Tree of Parzen Estimators
 
-Parzen estimators extend the Parzen window method in a logical way (1). The simple
-method is to pick a single model over the whole data range. The tree structure
-means picking one model for all data points where the model has low enough
-error, and picking a different model or set of models for the rest. In this way,
-TPE is kind of a blend of decision trees and the kernel method.
+Parzen estimators extend the Parzen window method in a logical way (1). The
+simple method is to pick a single model over the whole data range. The tree
+structure means picking one model for all data points where the model has low
+enough error, and picking a different model or set of models for the rest. In
+this way, TPE is kind of a blend of decision trees and the kernel method.
 
 ## Bayesian Optimization
 
 ## Random Search
+
+This is our baseline method, where we pick a bunch of random points. Every other
+method should perform better than this method.
 
 ## Gradient-Boosted Decision Trees
 
 (Not too sure about this wording, double check it)
 
 Gradient boosted decision trees is a mixture of shallow decision trees, where
-the mixture itself is optimized using the gradient of the loss function (2). This is
-like a more informed kernel trick, but an interesting generalization of it to
-"weak learners" rather than just some Gaussian basis function.
+the mixture itself is optimized using the gradient of the loss function (2).
+This is like a more informed kernel trick, but an interesting generalization of
+it to "weak learners" rather than just some Gaussian basis function.
 
 # Citations
 
