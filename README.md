@@ -42,7 +42,17 @@ TPE is kind of a blend of decision trees and the kernel method.
 
 ## Gradient-Boosted Decision Trees
 
+(Not too sure about this wording, double check it)
+
+Gradient boosted decision trees is a mixture of shallow decision trees, where
+the mixture itself is optimized using the gradient of the loss function (2). This is
+like a more informed kernel trick, but an interesting generalization of it to
+"weak learners" rather than just some Gaussian basis function.
+
 # Citations
 
 1. Bergstra, James S., et al. "Algorithms for hyper-parameter optimization."
    Advances in neural information processing systems. 2011.
+
+2. Friedman, Jerome H. "Greedy function approximation: a gradient boosting
+   machine." Annals of statistics (2001): 1189-1232.
