@@ -38,6 +38,8 @@ this way, TPE is kind of a blend of decision trees and the kernel method.
 
 ## Bayesian Optimization
 
+Bayesian optimization in general is the process of optimizing over the posterior distribution directly, as opposed to maximizing the likelihood as a way to approximate optimizing the posterior. The library we're using, in particular, implements a Student-T process with a spacial correlation model, picking the next evaluation point on the basis of expected improvement.
+
 ## Random Search
 
 This is our baseline method, where we pick a bunch of random points. Every other
