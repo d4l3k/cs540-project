@@ -49,7 +49,7 @@ for country_name, country in countries.items():
 
 train_pool = catboost.Pool(X, Y)
 
-model = catboost.CatBoostRegressor()
+model = catboost.CatBoostRegressor(verbose=False)
 model.fit(train_pool)
 model.save_model('deathrate.cbm')
 
