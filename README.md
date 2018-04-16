@@ -38,7 +38,11 @@ this way, TPE is kind of a blend of decision trees and the kernel method.
 
 ## Bayesian Optimization
 
-Bayesian optimization in general is the process of optimizing over the posterior distribution directly, as opposed to maximizing the likelihood as a way to approximate optimizing the posterior. The library we're using, in particular, implements a Student-T process with a spacial correlation model, picking the next evaluation point on the basis of expected improvement.
+Bayesian optimization in general is the process of optimizing over the posterior
+distribution directly, as opposed to maximizing the likelihood as a way to
+approximate optimizing the posterior. The library we're using, in particular,
+implements a Student-T process with a spacial correlation model, picking the
+next evaluation point on the basis of expected improvement (3).
 
 ## Random Search
 
@@ -61,3 +65,7 @@ it to "weak learners" rather than just some Gaussian basis function.
 
 2. Friedman, Jerome H. "Greedy function approximation: a gradient boosting
    machine." Annals of statistics (2001): 1189-1232.
+
+3. Martinez-Cantin, Ruben. "Bayesopt: A bayesian optimization library for
+   nonlinear optimization, experimental design and bandits." The Journal of
+   Machine Learning Research 15.1 (2014): 3735-3739.
