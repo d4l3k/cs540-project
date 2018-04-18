@@ -104,3 +104,6 @@ learn/
 *.tsv
 *.cbm
 .*.py
+
+# IntelliJ files that shouldn't be checked in
+.idea/workspace.xml
