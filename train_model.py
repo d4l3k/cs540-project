@@ -11,11 +11,11 @@ source_indicators = [
 ]
 all_indicators = source_indicators + [target_indicator]
 
-#expenditure_education = lib.get_data('SE.XPD.TOTL.GD.ZS')
-#expenditure_health = lib.get_data('SH.XPD.TOTL.ZS')
-#expenditure_rnd = lib.get_data('GB.XPD.RSDV.GD.ZS')
-#expenditure_military = lib.get_data('MS.MIL.XPND.GD.ZS')
-#death_rate = lib.get_data('SP.DYN.CDRT.IN')
+# expenditure_education = lib.get_data('SE.XPD.TOTL.GD.ZS')
+# expenditure_health = lib.get_data('SH.XPD.TOTL.ZS')
+# expenditure_rnd = lib.get_data('GB.XPD.RSDV.GD.ZS')
+# expenditure_military = lib.get_data('MS.MIL.XPND.GD.ZS')
+# death_rate = lib.get_data('SP.DYN.CDRT.IN')
 
 countries = {}
 for ind in all_indicators:

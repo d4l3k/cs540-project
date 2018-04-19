@@ -8,6 +8,7 @@ import hyperopt
 from sparklines import sparklines
 from tabulate import tabulate
 import time
+import argparse
 
 model = catboost.CatBoostRegressor(verbose=False)
 model.load_model('deathrate.cbm')
@@ -27,13 +28,13 @@ def report(*args):
 
 
 def format_result(method, data, time_taken, predict_calls):
-    return [method, np.sum(data), data[len(data)-1], len(data),
+    return [method, np.sum(data), data[len(data) - 1], len(data),
             '\n'.join(sparklines(data)), time_taken, predict_calls]
 
 
 def print_result_table(table):
     print(tabulate(table, headers=['Method', 'Dead per 1000', 'Final', 'Years',
-        'Distribution', 'Time (s)', 'Calls to Predict']))
+                                   'Distribution', 'Time (s)', 'Calls to Predict']))
 
 
 def print_result(*args):
@@ -48,11 +49,11 @@ total_predict_calls = 0
 last_y = None
 
 
-def predict(X):
+def predict(x):
     global total_predict_calls, last_y
     total_predict_calls += 1
 
-    y = model.predict(X)
+    y = model.predict(x)
 
     if last_y is None:
         last_y = y
@@ -73,83 +74,119 @@ def clear_predict():
 bounds = np.array([(0, 14.06), (2.23, 17.14), (0.02, 4.41), (0.13, 14.81)])
 random_state = np.random.RandomState()
 
-# TODO: give a realistic initialization point
-
-# Tree of Parzen Estimators
-start = time.time()
-x = []
+# TODO better initialization points
+tpe_x = []
 
 
-def tpe_objective(args):
-    global x
-    x += [args]
-    return predict([args])[0]
+def tpe():
+    """Tree of Parzen Estimators"""
+    clear_predict()
+
+    start = time.time()
+    global tpe_x
+    tpe_x = []
+
+    def tpe_objective(args):
+        global tpe_x
+        tpe_x += [args]
+        return predict([args])[0]
+
+    hyperopt.fmin(tpe_objective, space=[
+        hyperopt.hp.uniform(str(i), bound[0], bound[1])
+        for i, bound in enumerate(bounds)
+    ], algo=hyperopt.tpe.suggest, max_evals=(num_years + init_years))
+
+    report('Tree of Parzen Estimators', predict(tpe_x)[init_years:], time.time() - start, total_predict_calls)
 
 
-hyperopt.fmin(tpe_objective, space=[
-    hyperopt.hp.uniform(str(i), bound[0], bound[1])
-    for i, bound in enumerate(bounds)
-], algo=hyperopt.tpe.suggest, max_evals=(num_years+init_years))
+def bayesian_opt():
+    """Bayesian Optimization"""
+    clear_predict()
 
-report('Tree of Parzen Estimators', predict(x)[init_years:], time.time() - start, total_predict_calls)
+    # Bayesian Optimization
+    start = time.time()
+    bo = bayes_opt.BayesianOptimization(
+        lambda a, b, c, d: -predict([[a, b, c, d]])[0],
+        {'a': bounds[0], 'b': bounds[1], 'c': bounds[2], 'd': bounds[3]},
+    )
 
-clear_predict()
+    bo.maximize(init_points=init_years, n_iter=num_years)
+    report('Bayesian Optimization', -bo.space.Y[init_years:], time.time() - start, total_predict_calls)
 
-# Bayesian Optimization
-start = time.time()
-bo = bayes_opt.BayesianOptimization(
-    lambda a, b, c, d: -predict([[a, b, c, d]])[0],
-    {'a': bounds[0], 'b': bounds[1], 'c': bounds[2], 'd': bounds[3]},
-)
-bo.maximize(init_points=init_years, n_iter=num_years)
-report('Bayesian Optimization', -bo.Y[init_years:], time.time() - start, total_predict_calls)
 
-clear_predict()
+def random_search():
+    """RandomSearch (baseline, every model should do better than this)"""
+    clear_predict()
+    start = time.time()
+    y = np.zeros(num_years)
 
-# RandomSearch (baseline, every model should do better than this)
-start = time.time()
-y = np.zeros(num_years)
+    for i in range(num_years):
+        # Evaluate each year separately
+        x = random_state.uniform(bounds[:, 0], bounds[:, 1], size=(1, bounds.shape[0]))
+        y[i] = predict(x)
 
-for i in range(num_years):
-    # Evaluate each year separately
-    x = random_state.uniform(bounds[:, 0], bounds[:, 1], size=(1, bounds.shape[0]))
-    y[i] = predict(x)
+    report('Random Search', y, time.time() - start, total_predict_calls)
 
-report('Random Search', y, time.time() - start, total_predict_calls)
 
-clear_predict()
+def gbdt():
+    """GBDT"""
+    clear_predict()
+    start = time.time()
 
-# GBDT
-start = time.time()
-def random_points(n):
-    return random_state.uniform(bounds[:, 0], bounds[:, 1], size=(n, bounds.shape[0]))
+    def random_points(n):
+        return random_state.uniform(bounds[:, 0], bounds[:, 1], size=(n, bounds.shape[0]))
 
-x = random_points(init_years)
-y = np.zeros(init_years)
+    x = random_points(init_years)
+    y = np.zeros(init_years)
 
-# generate each initial year separately
-for i in range(init_years):
-    y[i] = predict(np.reshape(x[i, :], (1, x.shape[1])))
+    # generate each initial year separately
+    for i in range(init_years):
+        y[i] = predict(np.reshape(x[i, :], (1, x.shape[1])))
 
-gbdt_model = catboost.CatBoostRegressor(verbose=False)
-for i in range(num_years):
-    gbdt_model.fit(x, y)
-    x_tmps = []
-    for test_x in random_points(sample_points):
-        res = scipy.optimize.minimize(lambda x: gbdt_model.predict([x])[0], test_x, bounds=bounds)
-        if not res.success:
-            continue
-        x_tmps += [res.x]
-    best_i = np.argmin(gbdt_model.predict(x_tmps))
-    best_x = x_tmps[best_i]
-    x = np.append(x, [best_x], axis=0)
-    y_tmp = predict([best_x])
-    y = np.append(y, y_tmp)
+    gbdt_model = catboost.CatBoostRegressor(verbose=False)
+    for i in range(num_years):
+        gbdt_model.fit(x, y)
+        x_tmps = []
+        for test_x in random_points(sample_points):
+            res = scipy.optimize.minimize(lambda p_x: gbdt_model.predict([p_x])[0], test_x, bounds=bounds)
+            if not res.success:
+                continue
+            x_tmps += [res.x]
+        best_i = int(np.argmin(gbdt_model.predict(x_tmps)))
+        best_x = x_tmps[best_i]
+        x = np.append(x, [best_x], axis=0)
+        y_tmp = predict([best_x])
+        y = np.append(y, y_tmp)
 
-report('GBDT', y[init_years:], time.time() - start, total_predict_calls)
+    report('GBDT', y[init_years:], time.time() - start, total_predict_calls)
 
-clear_predict()
 
-print_results()
+def main():
+    parser = argparse.ArgumentParser()
 
-#import ipdb; ipdb.set_trace()
+    parser.add_argument("--tpe", help="run tree of parzen estimators", action="store_true")
+    parser.add_argument("--bayesian", help="run bayesian optimization", action="store_true")
+    parser.add_argument("--random-search", help="run random search", action="store_true")
+    parser.add_argument("--gbdt", help="run gradient boosted decision trees", action="store_true")
+
+    args = parser.parse_args()
+
+    run_all = not (args.tpe or args.bayesian or args.random_search or args.gbdt)
+
+    if run_all or args.tpe:
+        tpe()
+
+    if run_all or args.bayesian:
+        bayesian_opt()
+
+    if run_all or args.random_search:
+        random_search()
+
+    if run_all or args.gbdt:
+        gbdt()
+
+    print_results()
+
+
+if __name__ == '__main__':
+    main()
