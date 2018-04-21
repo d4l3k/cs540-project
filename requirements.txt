@@ -9,3 +9,4 @@ hyperopt # install from master
 sparklines # requires future to be installed
 tabulate
 gpflow
+tensorflow
