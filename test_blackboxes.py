@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
-import catboost
+print("loading")
+
+import argparse
+import time
+
 import bayes_opt
-import numpy as np
-import scipy.optimize
-import scipy.linalg
+import catboost
 import hyperopt
+import numpy as np
+import scipy.linalg
+import scipy.optimize
+import gpflow
+import tensorflow as tf
+
 from sparklines import sparklines
 from tabulate import tabulate
-import time
-import argparse
+from tensorflow.contrib import rnn
 
 model = catboost.CatBoostRegressor(verbose=False)
 model.load_model('deathrate.cbm')
@@ -74,6 +81,10 @@ def clear_predict():
 bounds = np.array([(0, 14.06), (2.23, 17.14), (0.02, 4.41), (0.13, 14.81)])
 random_state = np.random.RandomState()
 
+
+def random_points(n):
+    return random_state.uniform(bounds[:, 0], bounds[:, 1], size=(n, bounds.shape[0]))
+
 # TODO better initialization points
 tpe_x = []
 
@@ -133,9 +144,6 @@ def gbdt():
     clear_predict()
     start = time.time()
 
-    def random_points(n):
-        return random_state.uniform(bounds[:, 0], bounds[:, 1], size=(n, bounds.shape[0]))
-
     x = random_points(init_years)
     y = np.zeros(init_years)
 
@@ -143,7 +151,7 @@ def gbdt():
     for i in range(init_years):
         y[i] = predict(np.reshape(x[i, :], (1, x.shape[1])))
 
-    gbdt_model = catboost.CatBoostRegressor(verbose=False)
+    gbdt_model = catboost.CatBoostRegressor(verbose=True)
     for i in range(num_years):
         gbdt_model.fit(x, y)
         x_tmps = []
@@ -161,6 +169,85 @@ def gbdt():
     report('GBDT', y[init_years:], time.time() - start, total_predict_calls)
 
 
+def lstm():
+    """LSTM RNN Strategy"""
+    clear_predict()
+
+    g_functions = []
+
+    # First create a sample of functions
+    for i in range(init_years):
+        # Create a gaussian process
+        x = random_points(init_years)
+        y = np.zeros((init_years, 1))
+
+        # Generate our random points
+        for i in range(init_years):
+            y[i, 0] = predict(np.reshape(x[i, :], (1, x.shape[1])))
+
+        # Initialize our model
+        f = gpflow.models.GPR(x, y, kern=gpflow.kernels.RBF(x.shape[1]))
+
+        # Compile it
+        f.compile()
+
+        # Save it
+        g_functions.append(f)
+
+    # Size of our input, plus one for the corresponding y value
+    d_input = x.shape[1]
+
+    # How many initial years we're training on
+    batch_size = init_years
+
+    # Output size of the LSTM, which we want to have predict x values, so match that
+    num_units = d_input
+
+    learning_rate = 0.001
+
+    # How long we want to predict for
+    time_steps = num_years
+
+    # Create a placeholder for our dataset
+    x = tf.placeholder(tf.float64, [None, time_steps, d_input])
+
+    input = tf.unstack(x, time_steps)
+
+    cell = rnn.BasicLSTMCell(num_units, forget_bias=1)
+
+    # these outputs will be in the shape [time_step, batch_size, num_units]
+    outputs, _ = rnn.static_rnn(cell, input, dtype=tf.float64)
+
+    predictions = tf.zeros(time_steps)
+
+    # Gather all our predictions
+    for t in range(time_steps):
+        for i in range(batch_size):
+            # TODO getting type errors here. I think this is what I want, but it may not be.
+            predictions[t] += g_functions[i].predict_y(outputs[t])
+
+    # Try to make the best point better
+    loss = tf.reduce_min(predictions)
+
+    opt = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+
+    init = tf.global_variables_initializer()
+
+    with tf.Session() as sess:
+        sess.run(init)
+
+        # Train
+        for iter in range(10):
+            # Sample a bunch of random starting points
+            batch_x = random_points(batch_size)
+
+            sess.run(opt, feed_dict={x: batch_x})
+
+        # Test
+        test_x = random_points(1)
+        print("Loss:", sess.run(loss, feed_dict={x: test_x}))
+
+
 def main():
     parser = argparse.ArgumentParser()
 
@@ -168,22 +255,31 @@ def main():
     parser.add_argument("--bayesian", help="run bayesian optimization", action="store_true")
     parser.add_argument("--random-search", help="run random search", action="store_true")
     parser.add_argument("--gbdt", help="run gradient boosted decision trees", action="store_true")
+    parser.add_argument("--lstm", help="run LSTM method", action="store_true")
 
     args = parser.parse_args()
 
-    run_all = not (args.tpe or args.bayesian or args.random_search or args.gbdt)
+    run_all = not (args.tpe or args.bayesian or args.random_search or args.gbdt or args.lstm)
 
     if run_all or args.tpe:
+        print("running TPE")
         tpe()
 
     if run_all or args.bayesian:
+        print("running bayesian optimization")
         bayesian_opt()
 
     if run_all or args.random_search:
+        print("running random search")
         random_search()
 
     if run_all or args.gbdt:
+        print("running gbdt")
         gbdt()
+
+    if run_all or args.lstm:
+        print("running lstm")
+        lstm()
 
     print_results()
 
