@@ -223,27 +223,53 @@ def lstm():
     # How long we want to predict for
     time_steps = num_years
 
-    # Create a placeholder for our dataset
-    x = tf.placeholder(tf.float64, [None, time_steps, d_input])
-
-    inputs = tf.unstack(x, time_steps)
+    # Create a placeholder for our starting point
+    start = tf.placeholder(tf.float64, [batch_size, d_input])
 
     cell = rnn.BasicLSTMCell(num_units, forget_bias=1)
 
-    # these outputs will be in the shape [time_step, batch_size, num_units]
-    outputs, _ = rnn.static_rnn(cell, inputs, dtype=tf.float64)
+    def batch_predict(position):
+        preds = []
 
-    predictions = [tf.zeros(1, dtype=tf.float64) for _ in range(time_steps)]
-
-    # Gather all our predictions
-    for t in range(time_steps):
         for i in range(batch_size):
-            # https://github.com/GPflow/GPflow/blob/hugh/advanced_usage_notebook/doc/source/notebooks/advanced_usage.ipynb
-            # don't @ me
-            # noinspection PyProtectedMember
-            pred_mean, pred_var = g_functions[i]._build_predict(outputs[t])
+            # TODO this is producing pred_mean with shape (4,)??? Shouldn't it be (1,)?
+            pred_mean, pred_var = g_functions[i]._build_predict(tf.reshape(position[i], (position[i].shape[0], 1)))
             pred_mean, _ = g_functions[i].likelihood.predict_mean_and_var(pred_mean, pred_var)
-            predictions[t] += pred_mean
+            preds.append(pred_mean)
+
+        return tf.stack(preds)
+
+    def lstm_loop(time, cell_output, cell_state, loop_state):
+        emit_output = cell_output
+
+        if cell_output is None:
+            next_cell_state = cell.zero_state(batch_size, tf.float64)
+        else:
+            next_cell_state = cell_state
+
+        elements_finished = (time >= time_steps)
+        elements_first = (time == 0)
+        finished = tf.reduce_all(elements_finished)
+        first = tf.reduce_all(elements_first)
+
+        next_input = tf.cond(
+            finished,
+            lambda: tf.zeros([batch_size, d_input + 1], dtype=tf.float64),
+            lambda: tf.cond(
+                first,
+                lambda: tf.concat(start, batch_predict(start)),
+                lambda: tf.concat(cell_output, batch_predict(cell_output))
+            )
+        )
+
+        next_loop_state = None
+
+        return elements_finished, next_input, next_cell_state, emit_output, next_loop_state
+
+    # these outputs will be in the shape [time_step, batch_size, num_units]
+    outputs, _, _ = tf.nn.raw_rnn(cell, lstm_loop)
+
+    predictions = [batch_predict(outputs[t]) for t in range(time_steps)]
 
     # Try to make the best point better
     loss = tf.reduce_min(tf.stack(predictions))
@@ -255,14 +281,13 @@ def lstm():
     # Train
     for iter in range(10):
         # Sample a bunch of random starting points
-        # TODO this is not the right data to be feeding to the LSTM, or the LSTM is wrong, investigate
-        batch_x = random_points(batch_size)
+        batch_start = random_points(batch_size)
 
-        sess.run(opt, feed_dict={x: batch_x})
+        sess.run(opt, feed_dict={start: batch_start})
 
     # Test
-    test_x = random_points(1)
-    print("Loss:", sess.run(loss, feed_dict={x: test_x}))
+    test_start = random_points(1)
+    print("Loss:", sess.run(loss, feed_dict={start: test_start}))
 
 
 def main():
