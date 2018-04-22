@@ -10,3 +10,4 @@ sparklines # requires future to be installed
 tabulate
 gpflow
 tensorflow
+git+https://github.com/AeroPython/PyFME.git
