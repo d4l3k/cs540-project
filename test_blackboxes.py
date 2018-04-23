@@ -87,7 +87,6 @@ def tpe():
 
     def tpe_objective(args):
         tpe_x.append(args)
-        print(tpe_x)
         val = predict([args])[0]
         tpe_values.append(val)
         return val
