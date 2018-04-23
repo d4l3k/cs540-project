@@ -182,7 +182,7 @@ def lstm():
     d_input = model.bounds.shape[0]
 
     # How many initial years we're training on
-    batch_size = init_years
+    batch_size = 1
 
     # Output size of the LSTM, which we want to have predict x values, so match that
     num_units = d_input
@@ -229,7 +229,8 @@ def lstm():
 
         with gpflow.defer_build():
             # Initialize our model
-            f = gpflow.models.GPR(x, y, kern=gpflow.kernels.RBF(x.shape[1]))
+            kern = gpflow.kernels.Matern32(x.shape[1]) + gpflow.kernels.Linear(x.shape[1])
+            f = gpflow.models.GPR(x, y, kern=kern)
 
         # Compile it
         f.compile(session=sess)
@@ -238,11 +239,6 @@ def lstm():
         feeds.update(f.initializable_feeds)
 
         opt.minimize(f)
-
-        # Fix those variables now that we've optimized them
-        f.kern.variance.trainable = False
-        f.kern.lengthscales.trainable = False
-        f.likelihood.variance.trainable = False
 
         # Save it
         g_functions.append(f)
@@ -304,7 +300,7 @@ def lstm():
     # Try to reduce the total number of deaths
     loss = tf.reduce_sum(tf.stack(predictions)) + 1000 * tf.reduce_sum(tf.stack(violations))
 
-    opt = tf.train.AdamOptimizer().minimize(loss)
+    opt = tf.train.AdamOptimizer().minimize(loss, var_list=cell.trainable_variables)
 
     print("training")
 
