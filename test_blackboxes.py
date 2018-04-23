@@ -137,7 +137,7 @@ def gbdt():
     for i in range(init_years):
         y[i] = predict(np.reshape(x[i, :], (1, x.shape[1])))
 
-    gbdt_model = catboost.CatBoostRegressor(verbose=True)
+    gbdt_model = catboost.CatBoostRegressor(verbose=False)
     for i in range(num_years):
         gbdt_model.fit(x, y)
         x_tmps = []
