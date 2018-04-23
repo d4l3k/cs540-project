@@ -159,6 +159,7 @@ def gbdt():
 def lstm():
     """LSTM RNN Strategy"""
     clear_predict()
+    start_time = time.time()
 
     g_functions = []
 
@@ -177,6 +178,7 @@ def lstm():
     time_steps = num_years
 
     # Create a placeholder for our starting point
+    # Use an undecided batch size
     start = tf.placeholder(tf.float64, [batch_size, d_input])
 
     cell = rnn.BasicLSTMCell(num_units, forget_bias=1)
@@ -230,13 +232,9 @@ def lstm():
             pred_mean, pred_var = g_functions[i]._build_predict(this_position)
             pred_mean, _ = g_functions[i].likelihood.predict_mean_and_var(pred_mean, pred_var)
 
-            rhs = g_functions[i].kern.K(g_functions[i].X.parameter_tensor, this_position)
-
-            pred = tf.matmul(pred_mean, rhs, transpose_a=True)
-
             # We know the dimensionality here, but GPFlow loses track of it
             # As well, turn these into one-dimensional tensors
-            preds.append(tf.reshape(pred, (1,)))
+            preds.append(tf.reshape(pred_mean, (1,)))
 
         return tf.stack(preds)
 
@@ -283,16 +281,24 @@ def lstm():
 
     # Train
     for i in range(10):
-        print("training iteration", i)
-
         # Sample a bunch of random starting points
         batch_start = random_points(batch_size)
 
         sess.run(opt, feed_dict={start: batch_start})
 
     # Test
-    test_start = random_points(1)
-    print("Loss:", sess.run(loss, feed_dict={start: test_start}))
+    print("testing")
+    test_start = random_points(batch_size)
+    test_steps = sess.run(steps, feed_dict={start: test_start})
+    best_steps = sess.run(tf.unstack(tf.stack(test_steps), batch_size, 1))[0]
+    print("Best steps:", best_steps)
+
+    # Predict all these steps using our actual function
+    results = []
+    for step in best_steps:
+        results.append(float(predict(np.reshape(step, (1, step.shape[0])))))
+
+    report('LSTM', results, time.time() - start_time, total_predict_calls)
 
 
 def main():
