@@ -24,24 +24,26 @@ from models import airplane
 init_years = 5
 num_years = 20
 sample_points = 100
+epoch = 0
 
 results = []
 
 
 def report(*args):
     global results
-    results += [args]
+    args = args + (epoch,)
+    results.append(args)
     print_result(*args)
 
 
-def format_result(method, data, time_taken, predict_calls):
+def format_result(method, data, time_taken, predict_calls, epoch):
     return [method, np.sum(data), data[len(data) - 1], len(data),
-            '\n'.join(sparklines(data)), time_taken, predict_calls]
+            '\n'.join(sparklines(data)), time_taken, predict_calls, epoch]
 
 
 def print_result_table(table):
     print(tabulate(table, headers=['Method', model.label, 'Final', 'Years',
-                                   'Distribution', 'Time (s)', 'Calls to Predict']))
+                                   'Distribution', 'Time (s)', 'Calls to Predict', 'Epoch']))
 
 
 def print_result(*args):
@@ -53,7 +55,14 @@ def print_results():
 
 def graph_results():
     labels = []
-    for method, data, time_taken, predict_calls in results:
+    for result in results:
+        method = result[0]
+        data = result[1]
+        epoch = result[4]
+
+        if epoch > 0:
+            method += ' (Epoch {})'.format(epoch)
+
         labels.append(method)
         plt.plot(range(0,len(data)), data)
     plt.legend(labels)
@@ -111,19 +120,42 @@ def tpe():
     report('Tree of Parzen Estimators', tpe_values[init_years:], time.time() - start, total_predict_calls)
 
 
-def bayesian_opt():
+def bayesian_opt(iter_feature):
     """Bayesian Optimization"""
     clear_predict()
+
+    bounds = {
+        'a': model.bounds[0],
+        'b': model.bounds[1],
+        'c': model.bounds[2],
+        'd': model.bounds[3],
+        'iteration': [0, 0]
+    }
+
+    def update_iteration():
+        bounds['iteration'] = [total_predict_calls, total_predict_calls]
+        bo.set_bounds(bounds)
+
+
+    def bo_predict(a, b, c, d, iteration):
+        val = -predict([[a, b, c, d]])[0]
+        if iter_feature:
+            update_iteration()
+        return val
+
 
     # Bayesian Optimization
     start = time.time()
     bo = bayes_opt.BayesianOptimization(
-        lambda a, b, c, d: -predict([[a, b, c, d]])[0],
-        {'a': model.bounds[0], 'b': model.bounds[1], 'c': model.bounds[2], 'd': model.bounds[3]},
+        bo_predict,
+        bounds,
     )
 
-    bo.maximize(init_points=init_years, n_iter=num_years)
-    report('Bayesian Optimization', -bo.space.Y[init_years:], time.time() - start, total_predict_calls)
+    bo.maximize(init_points=1, n_iter=(init_years-1+num_years))
+    method = 'Bayesian Optimization'
+    if iter_feature:
+        method += ' (Iteration Feature)'
+    report(method, -bo.space.Y[init_years:], time.time() - start, total_predict_calls)
 
 
 def random_search():
@@ -363,8 +395,9 @@ def main():
     parser.add_argument("--lstm", help="run LSTM method", action="store_true")
     parser.add_argument("--airplane", help="use Airplane model", action="store_true")
     parser.add_argument("--repl", help="Drop into a REPL before running the models", action="store_true")
-    parser.add_argument("--verbose", help="verbose logging",
-    action="store_true")
+    parser.add_argument("--verbose", help="verbose logging", action="store_true")
+    parser.add_argument("--iter-feature", help="use iteration number as feature", action="store_true")
+    parser.add_argument("--epochs", type=int, help="number of epochs to run", default=1)
 
     args = parser.parse_args()
 
@@ -379,25 +412,31 @@ def main():
     if args.repl:
         import ipdb; ipdb.set_trace()
 
-    if run_all or args.tpe:
-        print("running TPE")
-        tpe()
+    global epoch
+    for e in range(0, args.epochs):
+        epoch = e
 
-    if run_all or args.bayesian:
-        print("running bayesian optimization")
-        bayesian_opt()
+        if run_all or args.tpe:
+            print("running TPE")
+            tpe()
 
-    if run_all or args.random_search:
-        print("running random search")
-        random_search()
+        if run_all or args.bayesian:
+            print("running bayesian optimization")
+            bayesian_opt(False)
+            if args.iter_feature:
+                bayesian_opt(True)
 
-    if run_all or args.gbdt:
-        print("running gbdt")
-        gbdt()
+        if run_all or args.random_search:
+            print("running random search")
+            random_search()
 
-    if run_all or args.lstm:
-        print("running lstm")
-        lstm()
+        if run_all or args.gbdt:
+            print("running gbdt")
+            gbdt()
+
+        if run_all or args.lstm:
+            print("running lstm")
+            lstm()
 
     print_results()
     graph_results()
