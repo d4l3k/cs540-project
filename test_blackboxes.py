@@ -185,9 +185,7 @@ def lstm():
 
     sess = tf.Session()
 
-    init = tf.global_variables_initializer()
-
-    sess.run(init)
+    feeds = {}
 
     print("sampling GPs")
 
@@ -205,8 +203,11 @@ def lstm():
             # Initialize our model
             f = gpflow.models.GPR(x, y, kern=gpflow.kernels.RBF(x.shape[1]))
 
-        # Compile and optimize it
+        # Compile it
         f.compile(session=sess)
+
+        # Include this function's feeds into ours
+        feeds.update(f.initializable_feeds)
 
         opt.minimize(f)
 
@@ -276,6 +277,9 @@ def lstm():
     opt = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
 
     print("training")
+
+    sess.run(tf.local_variables_initializer())
+    sess.run(tf.global_variables_initializer(), feed_dict=feeds)
 
     # Train
     for i in range(10):
