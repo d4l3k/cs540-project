@@ -78,7 +78,6 @@ def predict(x):
 
     return model.predict(clamped)
 
-
 def clear_predict():
     global total_predict_calls
     total_predict_calls = 0
@@ -206,15 +205,27 @@ def lstm():
 
     print("sampling GPs")
 
+    position_bias = model.bounds[:, 0]
+    position_weight = model.bounds[:, 1] - model.bounds[:, 0]
+
+    def normalize_position(x):
+        return 2. * np.divide((x - position_bias), position_weight) - 1.
+
+    def denormalize_position(x):
+        return np.multiply((x + 1.) / 2., position_weight) + position_bias
+
     # First create a sample of functions
     for i in range(batch_size):
         # Create a gaussian process
-        x = random_points(init_years)
+        x_sample = random_points(init_years)
+        x = np.zeros(x_sample.shape)
         y = np.zeros((init_years, 1))
 
         # Generate our random points
         for i in range(init_years):
-            y[i, 0] = predict(np.reshape(x[i, :], (1, x.shape[1])))
+            y[i, 0] = predict(np.reshape(x_sample[i, :], (1, x.shape[1])))
+            # normalize the position
+            x[i, :] = normalize_position(x_sample[i, :])
 
         with gpflow.defer_build():
             # Initialize our model
@@ -237,6 +248,9 @@ def lstm():
         g_functions.append(f)
 
     print("creating LSTM")
+
+    def step_constraint_violation(step):
+        return tf.reduce_sum(tf.maximum(1. - tf.abs(step), tf.ones(step.shape, tf.float64)) - 1.)
 
     def batch_predict(position):
         preds = []
@@ -284,11 +298,6 @@ def lstm():
     # Figure out the predicted y values there
     predictions = [batch_predict(step) for step in steps]
 
-    def step_constraint_violation(step):
-        l = tf.maximum(model.bounds[:, 0] - step, tf.zeros(step.shape, dtype=tf.float64))
-        h = tf.maximum(step - model.bounds[:, 1], tf.zeros(step.shape, dtype=tf.float64))
-        return tf.reduce_sum(l + h)
-
     # Sum constraint violations across all steps
     violations = [step_constraint_violation(step) for step in steps]
 
@@ -303,11 +312,18 @@ def lstm():
     sess.run(tf.global_variables_initializer(), feed_dict=feeds)
 
     # Train
-    for i in range(20):
+    for i in range(200):
         # Sample a bunch of random starting points
         batch_start = random_points(batch_size)
 
+        # normalize those positions
+        for b in range(batch_size):
+            batch_start[b, :] = normalize_position(batch_start[b, :])
+
         sess.run(opt, feed_dict={start: batch_start})
+
+        if i % 10 == 0:
+            print("Loss:", sess.run(loss, feed_dict={start: batch_start}))
 
     # Test
     print("testing")
@@ -323,14 +339,15 @@ def lstm():
         return np.sum(l + h)
 
     step = test_start
+
     for i in range(num_years):
         if np_step_constraint_violation(step) != 0:
             print("Step is outside bounds!")
         actual = predict(step)
         results.append(float(actual))
-        cell_input = np.concatenate((step, np.reshape(actual, (1, 1))), axis=1)
+        cell_input = np.concatenate((normalize_position(step), np.reshape(actual, (1, 1))), axis=1)
         step_ta, state = cell(tf.convert_to_tensor(cell_input), state)
-        step = sess.run(step_ta)
+        step = denormalize_position(sess.run(step_ta))
         print(step)
 
     report('LSTM', results, time.time() - start_time, total_predict_calls)
