@@ -27,13 +27,29 @@ popular black box algorithms on two stateful models.
 
 # Related Work
 
-Citing some paper [@Jones1998]
-
 # Description and Justification
+
+## Algorithms
+
+### Random Search
+
+Random search is one of the simplest black box optimization algorithms. It
+randomly guesses points within the bounds and then takes the highest value as
+the best option. This is used as a baseline for the other algorithms.
+
+### Tree of Parzen Estimators
+
+### Gradient Boosted Decision Trees
+
+### Bayesian Optimization (Gaussian Processes)
+
+### LSTM based Recurrent Neural Network
 
 ## Models
 
-To evaluate these algorithms we trained them on two stateful models.
+To evaluate these algorithms we trained them on two stateful models. Each model
+has a single function that needs to be optimized with $n$ parameters as well as
+bounds for the range of values that can be accepted.
 
 ### Death Rate
 
@@ -49,6 +65,9 @@ While this is a very simple model, it does provide some realistic behaviors.
 Many large systems have a high latency between cause and effect. We're also
 primarily interested in highlighting the differences between these algorithms.
 
+We bound the inputs to be within two times the maximum existing value for that
+expenditure category and greater than zero.
+
 ### Airplane
 
 The second model is that of flying an airplane. The Python Flight Mechanics
@@ -59,6 +78,9 @@ the distance the plane has flown towards the target. This model has numerous
 stateful variables that need to be modeled including position, rotation,
 velocity, direction. There are also many nonlinearities due to air resistance
 and gravity.
+
+This model uses the Cessna 172 as a base and bounds the inputs to be match the
+actual control range.
 
 # Experiments and Analysis
 
