@@ -57,7 +57,7 @@ def graph_results():
         labels.append(method)
         plt.plot(range(0,len(data)), data)
     plt.legend(labels)
-    plt.title('Algorithm Performance')
+    plt.title('Algorithm Performance (Smaller is better)')
     plt.xlabel('Iteration')
     plt.ylabel(model.label)
     plt.show()
