@@ -12,6 +12,7 @@ import scipy.linalg
 import scipy.optimize
 import gpflow
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 from sparklines import sparklines
 from tabulate import tabulate
@@ -50,12 +51,24 @@ def print_result(*args):
 def print_results():
     print_result_table([format_result(*res) for res in results])
 
+def graph_results():
+    labels = []
+    for method, data, time_taken, predict_calls in results:
+        labels.append(method)
+        plt.plot(range(0,len(data)), data)
+    plt.legend(labels)
+    plt.title('Algorithm Performance')
+    plt.xlabel('Iteration')
+    plt.ylabel(model.label)
+    plt.show()
+
+
 
 total_predict_calls = 0
 
 
 def predict(x):
-    global total_predict_calls, last_y
+    global total_predict_calls
     total_predict_calls += 1
 
     clamped = np.clip(x.copy(), model.bounds[:, 0], model.bounds[:, 1])
@@ -66,7 +79,7 @@ def predict(x):
     return model.predict(clamped)
 
 def clear_predict():
-    global total_predict_calls, last_y
+    global total_predict_calls
     total_predict_calls = 0
     model.reset()
 
@@ -75,29 +88,27 @@ random_state = np.random.RandomState()
 def random_points(n):
     return random_state.uniform(model.bounds[:, 0], model.bounds[:, 1], size=(n, model.bounds.shape[0]))
 
-# TODO better initialization points
-tpe_x = []
-
 
 def tpe():
     """Tree of Parzen Estimators"""
     clear_predict()
 
     start = time.time()
-    global tpe_x
     tpe_x = []
+    tpe_values = []
 
     def tpe_objective(args):
-        global tpe_x
-        tpe_x += [args]
-        return predict([args])[0]
+        tpe_x.append(args)
+        val = predict([args])[0]
+        tpe_values.append(val)
+        return val
 
     hyperopt.fmin(tpe_objective, space=[
         hyperopt.hp.uniform(str(i), bound[0], bound[1])
         for i, bound in enumerate(model.bounds)
     ], algo=hyperopt.tpe.suggest, max_evals=(num_years + init_years))
 
-    report('Tree of Parzen Estimators', predict(tpe_x)[init_years:], time.time() - start, total_predict_calls)
+    report('Tree of Parzen Estimators', tpe_values[init_years:], time.time() - start, total_predict_calls)
 
 
 def bayesian_opt():
@@ -389,6 +400,7 @@ def main():
         lstm()
 
     print_results()
+    graph_results()
 
 
 if __name__ == '__main__':
