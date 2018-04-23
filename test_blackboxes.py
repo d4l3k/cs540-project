@@ -175,6 +175,25 @@ def lstm():
 
     g_functions = []
 
+    # Size of our input, plus one for the corresponding y value
+    d_input = bounds.shape[0]
+
+    # How many initial years we're training on
+    batch_size = init_years
+
+    # Output size of the LSTM, which we want to have predict x values, so match that
+    num_units = d_input
+
+    learning_rate = 0.001
+
+    # How long we want to predict for
+    time_steps = num_years
+
+    # Create a placeholder for our starting point
+    start = tf.placeholder(tf.float64, [batch_size, d_input])
+
+    cell = rnn.BasicLSTMCell(num_units, forget_bias=1)
+
     opt = gpflow.train.ScipyOptimizer()
 
     sess = tf.Session()
@@ -204,38 +223,32 @@ def lstm():
 
         opt.minimize(f)
 
+        # Fix those variables now that we've optimized them
+        f.kern.variance.trainable = False
+        f.kern.lengthscales.trainable = False
+        f.likelihood.variance.trainable = False
+
         # Save it
         g_functions.append(f)
 
     print("creating LSTM")
 
-    # Size of our input, plus one for the corresponding y value
-    d_input = bounds.shape[0]
-
-    # How many initial years we're training on
-    batch_size = init_years
-
-    # Output size of the LSTM, which we want to have predict x values, so match that
-    num_units = d_input
-
-    learning_rate = 0.001
-
-    # How long we want to predict for
-    time_steps = num_years
-
-    # Create a placeholder for our starting point
-    start = tf.placeholder(tf.float64, [batch_size, d_input])
-
-    cell = rnn.BasicLSTMCell(num_units, forget_bias=1)
-
     def batch_predict(position):
         preds = []
 
         for i in range(batch_size):
-            # TODO this is producing pred_mean with shape (4,)??? Shouldn't it be (1,)?
-            pred_mean, pred_var = g_functions[i]._build_predict(tf.reshape(position[i], (position[i].shape[0], 1)))
+            this_position = tf.reshape(position[i], (1, position[i].shape[0]))
+
+            pred_mean, pred_var = g_functions[i]._build_predict(this_position)
             pred_mean, _ = g_functions[i].likelihood.predict_mean_and_var(pred_mean, pred_var)
-            preds.append(pred_mean)
+
+            rhs = g_functions[i].kern.K(g_functions[i].X.parameter_tensor, this_position)
+
+            pred = tf.matmul(pred_mean, rhs, transpose_a=True)
+
+            # We know the dimensionality here, but GPFlow loses track of it
+            # As well, turn these into one-dimensional tensors
+            preds.append(tf.reshape(pred, (1,)))
 
         return tf.stack(preds)
 
@@ -243,33 +256,32 @@ def lstm():
         emit_output = cell_output
 
         if cell_output is None:
+            cell_output = start
             next_cell_state = cell.zero_state(batch_size, tf.float64)
         else:
             next_cell_state = cell_state
 
         elements_finished = (time >= time_steps)
-        elements_first = (time == 0)
         finished = tf.reduce_all(elements_finished)
-        first = tf.reduce_all(elements_first)
 
         next_input = tf.cond(
             finished,
-            lambda: tf.zeros([batch_size, d_input + 1], dtype=tf.float64),
-            lambda: tf.cond(
-                first,
-                lambda: tf.concat(start, batch_predict(start)),
-                lambda: tf.concat(cell_output, batch_predict(cell_output))
-            )
+            lambda: tf.zeros((batch_size, d_input + 1), dtype=tf.float64),
+            lambda: tf.concat([cell_output, batch_predict(cell_output)], 1)
         )
 
         next_loop_state = None
 
         return elements_finished, next_input, next_cell_state, emit_output, next_loop_state
 
-    # these outputs will be in the shape [time_step, batch_size, num_units]
+    # these outputs will be in the shape [time_step, batch_size, d_input + 1]
     outputs, _, _ = tf.nn.raw_rnn(cell, lstm_loop)
 
-    predictions = [batch_predict(outputs[t]) for t in range(time_steps)]
+    # Get a list of all our steps
+    steps = tf.unstack(outputs.stack(), time_steps)
+
+    # Figure out the predicted y values there
+    predictions = [batch_predict(step) for step in steps]
 
     # Try to make the best point better
     loss = tf.reduce_min(tf.stack(predictions))
@@ -279,7 +291,9 @@ def lstm():
     print("training")
 
     # Train
-    for iter in range(10):
+    for i in range(10):
+        print("training iteration", i)
+
         # Sample a bunch of random starting points
         batch_start = random_points(batch_size)
 
