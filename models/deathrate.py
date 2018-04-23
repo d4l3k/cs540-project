@@ -9,6 +9,7 @@ class Model:
         self.model.load_model('deathrate.cbm')
         self.bounds = np.array([(0, 14.06), (2.23, 17.14), (0.02, 4.41), (0.13, 14.81)])
         self.reset()
+        self.label = 'Dead per 1000'
 
     def predict(self, x):
         y = self.model.predict(x)

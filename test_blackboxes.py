@@ -18,6 +18,7 @@ from tabulate import tabulate
 from tensorflow.contrib import rnn
 
 from models import deathrate
+from models import airplane
 
 init_years = 5
 num_years = 20
@@ -38,7 +39,7 @@ def format_result(method, data, time_taken, predict_calls):
 
 
 def print_result_table(table):
-    print(tabulate(table, headers=['Method', 'Dead per 1000', 'Final', 'Years',
+    print(tabulate(table, headers=['Method', model.label, 'Final', 'Years',
                                    'Distribution', 'Time (s)', 'Calls to Predict']))
 
 
@@ -284,11 +285,15 @@ def main():
     parser.add_argument("--random-search", help="run random search", action="store_true")
     parser.add_argument("--gbdt", help="run gradient boosted decision trees", action="store_true")
     parser.add_argument("--lstm", help="run LSTM method", action="store_true")
+    parser.add_argument("--airplane", help="use Airplane model", action="store_true")
 
     args = parser.parse_args()
 
     global model
-    model = deathrate.Model()
+    if args.airplane:
+        model = airplane.Model()
+    else:
+        model = deathrate.Model()
 
     run_all = not (args.tpe or args.bayesian or args.random_search or args.gbdt or args.lstm)
 
