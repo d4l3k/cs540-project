@@ -58,7 +58,12 @@ def predict(x):
     global total_predict_calls, last_y
     total_predict_calls += 1
 
-    return model.predict(x)
+    clamped = np.clip(x.copy(), model.bounds[:, 0], model.bounds[:, 1])
+
+    if not np.array_equal(clamped, x):
+        print('predict: Clamped {} to {}'.format(x, clamped))
+
+    return model.predict(clamped)
 
 
 def clear_predict():
@@ -329,16 +334,22 @@ def main():
     parser.add_argument("--gbdt", help="run gradient boosted decision trees", action="store_true")
     parser.add_argument("--lstm", help="run LSTM method", action="store_true")
     parser.add_argument("--airplane", help="use Airplane model", action="store_true")
+    parser.add_argument("--repl", help="Drop into a REPL before running the models", action="store_true")
+    parser.add_argument("--verbose", help="verbose logging",
+    action="store_true")
 
     args = parser.parse_args()
 
     global model
     if args.airplane:
-        model = airplane.Model()
+        model = airplane.Model(args.verbose)
     else:
         model = deathrate.Model()
 
     run_all = not (args.tpe or args.bayesian or args.random_search or args.gbdt or args.lstm)
+
+    if args.repl:
+        import ipdb; ipdb.set_trace()
 
     if run_all or args.tpe:
         print("running TPE")

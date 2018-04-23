@@ -19,9 +19,10 @@ def dist(a, b):
     return np.linalg.norm(a - b.earth_coordinates)
 
 class Model:
-    def __init__(self):
+    def __init__(self, verbose):
         self.label = 'Distance'
         self.reset()
+        self.verbose = verbose
 
     def predict(self, xs):
         traveled = []
@@ -29,7 +30,8 @@ class Model:
         for x in xs:
             start = self.sim.system.full_state.position.earth_coordinates.copy()
 
-            print(x, self.sim.system.full_state)
+            if self.verbose:
+                print(x, self.sim.system.full_state)
 
             for i, v in enumerate(x):
                 self.controls[i].offset = x[i]
@@ -41,14 +43,15 @@ class Model:
 
             traveled.append(dist(end, target) - dist(start, target))
 
-        return traveled
+        return np.array(traveled)
 
     def reset(self):
         self.time = 0
         self.aircraft = Cessna172()
-        self.bounds = []
+        bounds = []
         for control, limits in self.aircraft.control_limits.items():
-            self.bounds.append(np.array(limits))
+            bounds.append(limits)
+        self.bounds = np.array(bounds)
 
         self.atmosphere = ISA1976()
         self.gravity = VerticalConstant()
