@@ -172,8 +172,6 @@ def lstm():
     # Output size of the LSTM, which we want to have predict x values, so match that
     num_units = d_input
 
-    learning_rate = 0.001
-
     # How long we want to predict for
     # TODO add init years to this to make things a bit better at the beginning
     time_steps = num_years
@@ -193,7 +191,7 @@ def lstm():
     print("sampling GPs")
 
     # First create a sample of functions
-    for i in range(init_years):
+    for i in range(batch_size):
         # Create a gaussian process
         x = random_points(init_years)
         y = np.zeros((init_years, 1))
@@ -270,11 +268,18 @@ def lstm():
     # Figure out the predicted y values there
     predictions = [batch_predict(step) for step in steps]
 
-    # Try to make the best point better
-    # TODO make this a total regret loss, and add a prior for constraint violation
-    loss = tf.reduce_min(tf.stack(predictions))
+    def step_constraint_violation(step):
+        l = tf.maximum(model.bounds[:, 0] - step, tf.zeros(step.shape, dtype=tf.float64))
+        h = tf.maximum(step - model.bounds[:, 1], tf.zeros(step.shape, dtype=tf.float64))
+        return tf.reduce_sum(l + h)
 
-    opt = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+    # Sum constraint violations across all steps
+    violations = [step_constraint_violation(step) for step in steps]
+
+    # Try to reduce the total number of deaths
+    loss = tf.reduce_sum(tf.stack(predictions)) + 1000 * tf.reduce_sum(tf.stack(violations))
+
+    opt = tf.train.AdamOptimizer().minimize(loss)
 
     print("training")
 
@@ -282,7 +287,7 @@ def lstm():
     sess.run(tf.global_variables_initializer(), feed_dict=feeds)
 
     # Train
-    for i in range(10):
+    for i in range(20):
         # Sample a bunch of random starting points
         batch_start = random_points(batch_size)
 
@@ -290,15 +295,27 @@ def lstm():
 
     # Test
     print("testing")
-    test_start = random_points(batch_size)
-    test_steps = sess.run(steps, feed_dict={start: test_start})
-    best_steps = sess.run(tf.unstack(tf.stack(test_steps), batch_size, 1))[0]
-    print("Best steps:", best_steps)
+    test_start = random_points(1)
 
     # Predict all these steps using our actual function
     results = []
-    for step in best_steps:
-        results.append(float(predict(np.reshape(step, (1, step.shape[0])))))
+    state = cell.zero_state(1, dtype=tf.float64)
+
+    def np_step_constraint_violation(step):
+        l = np.maximum(model.bounds[:, 0] - step, np.zeros(step.shape))
+        h = np.maximum(step - model.bounds[:, 1], np.zeros(step.shape))
+        return np.sum(l + h)
+
+    step = test_start
+    for i in range(num_years):
+        if np_step_constraint_violation(step) != 0:
+            print("Step is outside bounds!")
+        actual = predict(step)
+        results.append(float(actual))
+        cell_input = np.concatenate((step, np.reshape(actual, (1, 1))), axis=1)
+        step_ta, state = cell(tf.convert_to_tensor(cell_input), state)
+        step = sess.run(step_ta)
+        print(step)
 
     report('LSTM', results, time.time() - start_time, total_predict_calls)
 
