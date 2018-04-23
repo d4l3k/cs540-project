@@ -175,6 +175,7 @@ def lstm():
     learning_rate = 0.001
 
     # How long we want to predict for
+    # TODO add init years to this to make things a bit better at the beginning
     time_steps = num_years
 
     # Create a placeholder for our starting point
@@ -270,6 +271,7 @@ def lstm():
     predictions = [batch_predict(step) for step in steps]
 
     # Try to make the best point better
+    # TODO make this a total regret loss, and add a prior for constraint violation
     loss = tf.reduce_min(tf.stack(predictions))
 
     opt = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
