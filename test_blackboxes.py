@@ -17,13 +17,11 @@ from sparklines import sparklines
 from tabulate import tabulate
 from tensorflow.contrib import rnn
 
-model = catboost.CatBoostRegressor(verbose=False)
-model.load_model('deathrate.cbm')
+from models import deathrate
 
 init_years = 5
 num_years = 20
 sample_points = 100
-momentum = .10
 
 results = []
 
@@ -53,37 +51,24 @@ def print_results():
 
 
 total_predict_calls = 0
-last_y = None
 
 
 def predict(x):
     global total_predict_calls, last_y
     total_predict_calls += 1
 
-    y = model.predict(x)
-
-    if last_y is None:
-        last_y = y
-    else:
-        # Add some momentum year-on-year
-        y += momentum * last_y
-        last_y = y
-
-    return y
+    return model.predict(x)
 
 
 def clear_predict():
     global total_predict_calls, last_y
     total_predict_calls = 0
-    last_y = None
+    model.reset()
 
-
-bounds = np.array([(0, 14.06), (2.23, 17.14), (0.02, 4.41), (0.13, 14.81)])
 random_state = np.random.RandomState()
 
-
 def random_points(n):
-    return random_state.uniform(bounds[:, 0], bounds[:, 1], size=(n, bounds.shape[0]))
+    return random_state.uniform(model.bounds[:, 0], model.bounds[:, 1], size=(n, model.bounds.shape[0]))
 
 # TODO better initialization points
 tpe_x = []
@@ -104,7 +89,7 @@ def tpe():
 
     hyperopt.fmin(tpe_objective, space=[
         hyperopt.hp.uniform(str(i), bound[0], bound[1])
-        for i, bound in enumerate(bounds)
+        for i, bound in enumerate(model.bounds)
     ], algo=hyperopt.tpe.suggest, max_evals=(num_years + init_years))
 
     report('Tree of Parzen Estimators', predict(tpe_x)[init_years:], time.time() - start, total_predict_calls)
@@ -118,7 +103,7 @@ def bayesian_opt():
     start = time.time()
     bo = bayes_opt.BayesianOptimization(
         lambda a, b, c, d: -predict([[a, b, c, d]])[0],
-        {'a': bounds[0], 'b': bounds[1], 'c': bounds[2], 'd': bounds[3]},
+        {'a': model.bounds[0], 'b': model.bounds[1], 'c': model.bounds[2], 'd': model.bounds[3]},
     )
 
     bo.maximize(init_points=init_years, n_iter=num_years)
@@ -133,7 +118,7 @@ def random_search():
 
     for i in range(num_years):
         # Evaluate each year separately
-        x = random_state.uniform(bounds[:, 0], bounds[:, 1], size=(1, bounds.shape[0]))
+        x = random_state.uniform(model.bounds[:, 0], model.bounds[:, 1], size=(1, model.bounds.shape[0]))
         y[i] = predict(x)
 
     report('Random Search', y, time.time() - start, total_predict_calls)
@@ -156,7 +141,8 @@ def gbdt():
         gbdt_model.fit(x, y)
         x_tmps = []
         for test_x in random_points(sample_points):
-            res = scipy.optimize.minimize(lambda p_x: gbdt_model.predict([p_x])[0], test_x, bounds=bounds)
+            res = scipy.optimize.minimize(lambda p_x:
+                    gbdt_model.predict([p_x])[0], test_x, bounds=model.bounds)
             if not res.success:
                 continue
             x_tmps += [res.x]
@@ -176,7 +162,7 @@ def lstm():
     g_functions = []
 
     # Size of our input, plus one for the corresponding y value
-    d_input = bounds.shape[0]
+    d_input = model.bounds.shape[0]
 
     # How many initial years we're training on
     batch_size = init_years
@@ -314,6 +300,9 @@ def main():
     parser.add_argument("--lstm", help="run LSTM method", action="store_true")
 
     args = parser.parse_args()
+
+    global model
+    model = deathrate.Model()
 
     run_all = not (args.tpe or args.bayesian or args.random_search or args.gbdt or args.lstm)
 
