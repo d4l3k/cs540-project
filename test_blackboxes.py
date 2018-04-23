@@ -12,6 +12,7 @@ import scipy.linalg
 import scipy.optimize
 import gpflow
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 from sparklines import sparklines
 from tabulate import tabulate
@@ -49,6 +50,18 @@ def print_result(*args):
 
 def print_results():
     print_result_table([format_result(*res) for res in results])
+
+def graph_results():
+    labels = []
+    for method, data, time_taken, predict_calls in results:
+        labels.append(method)
+        plt.plot(range(0,len(data)), data)
+    plt.legend(labels)
+    plt.title('Algorithm Performance')
+    plt.xlabel('Iteration')
+    plt.ylabel(model.label)
+    plt.show()
+
 
 
 total_predict_calls = 0
@@ -370,6 +383,7 @@ def main():
         lstm()
 
     print_results()
+    graph_results()
 
 
 if __name__ == '__main__':
