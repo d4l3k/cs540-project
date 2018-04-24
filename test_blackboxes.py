@@ -275,22 +275,21 @@ def gbdt(iter_feature):
 
 class LSTMModel:
     """LSTM RNN Model"""
-    d_input = None  # model isn't established at this point
-    batch_size = 1
-    init_samples = init_years
-    num_units = None
-    time_steps = num_years
+    BATCH_SIZE = 1
+    TRAINING_ITERATIONS = 200
 
     def __init__(self):
-        # Set these now that globals are in place
+        # Some constants depend on model/flags
         self.d_input = model.bounds.shape[0]
         self.num_units = self.d_input
+        self.time_steps = num_years
+        self.init_samples = init_years
 
         self.g_functions = []
         self.samples = []
         self.cell = rnn.BasicLSTMCell(self.num_units, forget_bias=1)
         self.gp_opt = gpflow.train.ScipyOptimizer()
-        self.start = tf.placeholder(tf.float64, [self.batch_size, self.d_input])
+        self.start = tf.placeholder(tf.float64, [self.BATCH_SIZE, self.d_input])
         self.feeds = {}
         self.sess = tf.Session()
         self.position_bias = model.bounds[:, 0]
@@ -316,7 +315,7 @@ class LSTMModel:
     def _batch_predict(self, position):
         preds = []
 
-        for i in range(self.batch_size):
+        for i in range(self.BATCH_SIZE):
             this_position = tf.reshape(position[i], (1, position[i].shape[0]))
 
             pred_mean, pred_var = self.g_functions[i]._build_predict(this_position)
@@ -333,7 +332,7 @@ class LSTMModel:
 
         if cell_output is None:
             cell_output = self.start
-            next_cell_state = self.cell.zero_state(self.batch_size, tf.float64)
+            next_cell_state = self.cell.zero_state(self.BATCH_SIZE, tf.float64)
         else:
             next_cell_state = cell_state
 
@@ -342,7 +341,7 @@ class LSTMModel:
 
         next_input = tf.cond(
             finished,
-            lambda: tf.zeros((self.batch_size, self.d_input + 1), dtype=tf.float64),
+            lambda: tf.zeros((self.BATCH_SIZE, self.d_input + 1), dtype=tf.float64),
             lambda: tf.concat([cell_output, self._batch_predict(cell_output)], 1)
         )
 
@@ -399,12 +398,12 @@ class LSTMModel:
         self.sess.run(tf.global_variables_initializer(), feed_dict=self.feeds)
 
         # Train
-        for i in range(200):
+        for i in range(self.TRAINING_ITERATIONS):
             # Sample a bunch of random starting points
-            batch_start = random_points(self.batch_size)
+            batch_start = random_points(self.BATCH_SIZE)
 
             # normalize those positions
-            for b in range(self.batch_size):
+            for b in range(self.BATCH_SIZE):
                 batch_start[b, :] = self._normalize_position(batch_start[b, :])
 
             self.sess.run(opt, feed_dict={self.start: batch_start})
@@ -413,7 +412,7 @@ class LSTMModel:
                 print("Loss:", self.sess.run(loss, feed_dict={self.start: batch_start}))
 
     def _sample_batches(self):
-        batch_samples = int(math.ceil(len(self.samples) / self.batch_size))
+        batch_samples = int(math.ceil(len(self.samples) / self.BATCH_SIZE))
 
         for i in range(0, len(self.samples), batch_samples):
             yield self.samples[i:i + batch_samples]
