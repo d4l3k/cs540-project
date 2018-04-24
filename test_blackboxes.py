@@ -53,6 +53,46 @@ def print_result(*args):
 def print_results():
     print_result_table([format_result(*res) for res in results])
 
+def merge(vals):
+    if isinstance(vals[0], (list, tuple, np.ndarray)):
+        out = []
+
+        columns = len(vals[0])
+        for i in range(columns):
+            intermediates = []
+            for row in vals:
+                intermediates.append(row[i])
+
+            out.append(merge(intermediates))
+
+        return out
+
+    elif isinstance(vals[0], str):
+        return vals[0]
+
+    elif isinstance(vals[0], (int, float, complex)):
+        return np.mean(vals)
+
+    else:
+        raise Exception('unknown type for {}'.format(vals))
+
+
+def average_results():
+    global results
+
+    print('averaging...')
+
+    grouped = {}
+    for result in results:
+        method = result[0]
+        grouped[method] = grouped.get(method, []) + [result]
+
+    merged = []
+    for key, results in grouped.items():
+        merged.append(merge(results))
+
+    results = merged
+
 def graph_results():
     labels = []
     for result in results:
@@ -394,6 +434,7 @@ def main():
     parser.add_argument("--verbose", help="verbose logging", action="store_true")
     parser.add_argument("--iter-feature", help="use iteration number as feature", action="store_true")
     parser.add_argument("--epochs", type=int, help="number of epochs to run", default=1)
+    parser.add_argument("--mean", help="take the mean of the values", action="store_true")
 
     args = parser.parse_args()
 
@@ -435,6 +476,11 @@ def main():
             lstm()
 
     print_results()
+
+    if args.mean:
+        average_results()
+        print_results()
+
     graph_results()
 
 
