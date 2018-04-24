@@ -3,6 +3,7 @@ print("loading")
 
 import argparse
 import time
+import math
 
 import bayes_opt
 import catboost
@@ -273,91 +274,54 @@ def gbdt(iter_feature):
     report(method, y[init_years:], time.time() - start, total_predict_calls)
 
 
-def lstm():
-    """LSTM RNN Strategy"""
-    clear_predict()
-    start_time = time.time()
-
-    g_functions = []
-
-    # Size of our input, plus one for the corresponding y value
-    d_input = model.bounds.shape[0]
-
-    # How many initial years we're training on
+class LSTMModel:
+    """LSTM RNN Model"""
+    d_input = None  # model isn't established at this point
     batch_size = 1
-
-    # Output size of the LSTM, which we want to have predict x values, so match that
-    num_units = d_input
-
-    # How long we want to predict for
-    # TODO add init years to this to make things a bit better at the beginning
+    init_samples = init_years
+    num_units = None
     time_steps = num_years
 
-    # Create a placeholder for our starting point
-    # Use an undecided batch size
-    start = tf.placeholder(tf.float64, [batch_size, d_input])
+    def __init__(self):
+        # Set these now that globals are in place
+        self.d_input = model.bounds.shape[0]
+        self.num_units = self.d_input
 
-    cell = rnn.BasicLSTMCell(num_units, forget_bias=1)
+        self.g_functions = []
+        self.samples = []
+        self.cell = rnn.BasicLSTMCell(self.num_units, forget_bias=1)
+        self.gp_opt = gpflow.train.ScipyOptimizer()
+        self.start = tf.placeholder(tf.float64, [self.batch_size, self.d_input])
+        self.feeds = {}
+        self.sess = tf.Session()
+        self.position_bias = model.bounds[:, 0]
+        self.position_weight = model.bounds[:, 1] - model.bounds[:, 0]
 
-    opt = gpflow.train.ScipyOptimizer()
+    def _normalize_position(self, x):
+        return 2. * np.divide((x - self.position_bias), self.position_weight) - 1.
 
-    sess = tf.Session()
+    def _denormalize_position(self, x):
+        return np.multiply((x + 1.) / 2., self.position_weight) + self.position_bias
 
-    feeds = {}
-
-    print("sampling GPs")
-
-    position_bias = model.bounds[:, 0]
-    position_weight = model.bounds[:, 1] - model.bounds[:, 0]
-
-    def normalize_position(x):
-        return 2. * np.divide((x - position_bias), position_weight) - 1.
-
-    def denormalize_position(x):
-        return np.multiply((x + 1.) / 2., position_weight) + position_bias
-
-    # First create a sample of functions
-    for i in range(batch_size):
-        # Create a gaussian process
-        x_sample = random_points(init_years)
-        x = np.zeros(x_sample.shape)
-        y = np.zeros((init_years, 1))
-
-        # Generate our random points
-        for i in range(init_years):
-            y[i, 0] = predict(np.reshape(x_sample[i, :], (1, x.shape[1])))
-            # normalize the position
-            x[i, :] = normalize_position(x_sample[i, :])
-
-        with gpflow.defer_build():
-            # Initialize our model
-            kern = gpflow.kernels.Matern32(x.shape[1]) + gpflow.kernels.Linear(x.shape[1])
-            f = gpflow.models.GPR(x, y, kern=kern)
-
-        # Compile it
-        f.compile(session=sess)
-
-        # Include this function's feeds into ours
-        feeds.update(f.initializable_feeds)
-
-        opt.minimize(f)
-
-        # Save it
-        g_functions.append(f)
-
-    print("creating LSTM")
-
-    def step_constraint_violation(step):
+    @staticmethod
+    def _step_constraint_violation(step):
         return tf.reduce_sum(tf.maximum(1. - tf.abs(step), tf.ones(step.shape, tf.float64)) - 1.)
 
-    def batch_predict(position):
+    @staticmethod
+    def _output_step_constraint_violation(step):
+        l = np.maximum(model.bounds[:, 0] - step, np.zeros(step.shape))
+        h = np.maximum(step - model.bounds[:, 1], np.zeros(step.shape))
+
+        return np.sum(l + h)
+
+    def _batch_predict(self, position):
         preds = []
 
-        for i in range(batch_size):
+        for i in range(self.batch_size):
             this_position = tf.reshape(position[i], (1, position[i].shape[0]))
 
-            pred_mean, pred_var = g_functions[i]._build_predict(this_position)
-            pred_mean, _ = g_functions[i].likelihood.predict_mean_and_var(pred_mean, pred_var)
+            pred_mean, pred_var = self.g_functions[i]._build_predict(this_position)
+            pred_mean, _ = self.g_functions[i].likelihood.predict_mean_and_var(pred_mean, pred_var)
 
             # We know the dimensionality here, but GPFlow loses track of it
             # As well, turn these into one-dimensional tensors
@@ -365,90 +329,154 @@ def lstm():
 
         return tf.stack(preds)
 
-    def lstm_loop(time, cell_output, cell_state, loop_state):
+    def _lstm_loop(self, time, cell_output, cell_state, loop_state):
         emit_output = cell_output
 
         if cell_output is None:
-            cell_output = start
-            next_cell_state = cell.zero_state(batch_size, tf.float64)
+            cell_output = self.start
+            next_cell_state = self.cell.zero_state(self.batch_size, tf.float64)
         else:
             next_cell_state = cell_state
 
-        elements_finished = (time >= time_steps)
+        elements_finished = (time >= self.time_steps)
         finished = tf.reduce_all(elements_finished)
 
         next_input = tf.cond(
             finished,
-            lambda: tf.zeros((batch_size, d_input + 1), dtype=tf.float64),
-            lambda: tf.concat([cell_output, batch_predict(cell_output)], 1)
+            lambda: tf.zeros((self.batch_size, self.d_input + 1), dtype=tf.float64),
+            lambda: tf.concat([cell_output, self._batch_predict(cell_output)], 1)
         )
 
         next_loop_state = None
 
         return elements_finished, next_input, next_cell_state, emit_output, next_loop_state
 
-    # these outputs will be in the shape [time_step, batch_size, d_input + 1]
-    outputs, _, _ = tf.nn.raw_rnn(cell, lstm_loop)
+    def _build_one_gp(self, x_sample, y_sample):
+        x = np.zeros(x_sample.shape)
+        y = y_sample
 
-    # Get a list of all our steps
-    steps = tf.unstack(outputs.stack(), time_steps)
+        # Generate our random points
+        for i in range(init_years):
+            # normalize the position
+            x[i, :] = self._normalize_position(x_sample[i, :])
 
-    # Figure out the predicted y values there
-    predictions = [batch_predict(step) for step in steps]
+        with gpflow.defer_build():
+            # Initialize our model
+            kern = gpflow.kernels.Matern32(x.shape[1]) + gpflow.kernels.Linear(x.shape[1])
+            f = gpflow.models.GPR(x, y, kern=kern)
 
-    # Sum constraint violations across all steps
-    violations = [step_constraint_violation(step) for step in steps]
+        # Compile it
+        f.compile(session=self.sess)
 
-    # Try to reduce the total number of deaths
-    loss = tf.reduce_sum(tf.stack(predictions)) + 1000 * tf.reduce_sum(tf.stack(violations))
+        # Include this function's feeds into ours
+        self.feeds.update(f.initializable_feeds)
 
-    opt = tf.train.AdamOptimizer().minimize(loss, var_list=cell.trainable_variables)
+        self.gp_opt.minimize(f)
 
-    print("training")
+        return f
 
-    sess.run(tf.local_variables_initializer())
-    sess.run(tf.global_variables_initializer(), feed_dict=feeds)
+    def _build_rnn(self):
+        # these outputs will be in the shape [time_step, batch_size, d_input + 1]
+        outputs, _, _ = tf.nn.raw_rnn(self.cell, self._lstm_loop)
 
-    # Train
-    for i in range(200):
-        # Sample a bunch of random starting points
-        batch_start = random_points(batch_size)
+        # Get a list of all our steps
+        steps = tf.unstack(outputs.stack(), self.time_steps)
 
-        # normalize those positions
-        for b in range(batch_size):
-            batch_start[b, :] = normalize_position(batch_start[b, :])
+        # Figure out the predicted y values there
+        predictions = [self._batch_predict(step) for step in steps]
 
-        sess.run(opt, feed_dict={start: batch_start})
+        # Sum constraint violations across all steps
+        violations = [self._step_constraint_violation(step) for step in steps]
 
-        if i % 10 == 0:
-            print("Loss:", sess.run(loss, feed_dict={start: batch_start}))
+        # Try to reduce the total number of deaths
+        loss = tf.reduce_sum(tf.stack(predictions)) + 1000 * tf.reduce_sum(tf.stack(violations))
 
-    # Test
-    print("testing")
-    test_start = random_points(1)
+        return loss
 
-    # Predict all these steps using our actual function
-    results = []
-    state = cell.zero_state(1, dtype=tf.float64)
+    def _train(self, loss):
+        opt = tf.train.AdamOptimizer().minimize(loss, var_list=self.cell.trainable_variables)
 
-    def np_step_constraint_violation(step):
-        l = np.maximum(model.bounds[:, 0] - step, np.zeros(step.shape))
-        h = np.maximum(step - model.bounds[:, 1], np.zeros(step.shape))
-        return np.sum(l + h)
+        self.sess.run(tf.local_variables_initializer())
+        self.sess.run(tf.global_variables_initializer(), feed_dict=self.feeds)
 
-    step = test_start
+        # Train
+        for i in range(200):
+            # Sample a bunch of random starting points
+            batch_start = random_points(self.batch_size)
 
-    for i in range(num_years):
-        if np_step_constraint_violation(step) != 0:
-            print("Step is outside bounds!")
-        actual = predict(step)
-        results.append(float(actual))
-        cell_input = np.concatenate((normalize_position(step), np.reshape(actual, (1, 1))), axis=1)
-        step_ta, state = cell(tf.convert_to_tensor(cell_input), state)
-        step = denormalize_position(sess.run(step_ta))
-        print(step)
+            # normalize those positions
+            for b in range(self.batch_size):
+                batch_start[b, :] = self._normalize_position(batch_start[b, :])
 
-    report('LSTM', results, time.time() - start_time, total_predict_calls)
+            self.sess.run(opt, feed_dict={self.start: batch_start})
+
+            if i % 10 == 0:
+                print("Loss:", self.sess.run(loss, feed_dict={self.start: batch_start}))
+
+    def _sample_batches(self):
+        batch_samples = int(math.ceil(len(self.samples) / self.batch_size))
+
+        for i in range(0, len(self.samples), batch_samples):
+            yield self.samples[i:i + batch_samples]
+
+    def _build_gps(self):
+        # Clear whatever's already there
+        self.g_functions.clear()
+
+        for batch in self._sample_batches():
+            # list of tuples -> tuple of lists
+            x_sample, y_sample = zip(*batch)
+
+            # Create a gaussian process
+            f = self._build_one_gp(np.stack(x_sample), np.stack(y_sample))
+
+            # Save it
+            self.g_functions.append(f)
+
+    def evaluate(self):
+        clear_predict()
+        start_time = time.time()
+
+        print("sampling GPs")
+
+        # Create our initial samples
+        for i in range(self.init_samples):
+            point = random_points(1)
+            self.samples.append((np.reshape(point, (model.bounds.shape[0],)), predict(point)))
+
+        # Create our gaussians
+        self._build_gps()
+
+        print("creating LSTM")
+
+        loss = self._build_rnn()
+
+        print("training")
+
+        self._train(loss)
+
+        # Test
+        print("testing")
+
+        test_start = random_points(1)
+
+        # Predict all these steps using our actual function
+        test_actuals = []
+        state = self.cell.zero_state(1, dtype=tf.float64)
+
+        step = test_start
+
+        for i in range(num_years):
+            if self._output_step_constraint_violation(step) != 0:
+                print("Step is outside bounds!")
+            actual = predict(step)
+            test_actuals.append(float(actual))
+            cell_input = np.concatenate((self._normalize_position(step), np.reshape(actual, (1, 1))), axis=1)
+            step_ta, state = self.cell(tf.convert_to_tensor(cell_input), state)
+            step = self._denormalize_position(self.sess.run(step_ta))
+            print(step)
+
+        report('LSTM', test_actuals, time.time() - start_time, total_predict_calls)
 
 
 def main():
@@ -505,7 +533,7 @@ def main():
 
         if run_all or args.lstm:
             print("running lstm")
-            lstm()
+            LSTMModel().evaluate()
 
     print_results()
 
