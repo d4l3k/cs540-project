@@ -28,70 +28,84 @@ dependent on previous parameters, and dominates the function output.
 
 # Introduction
 
-For our project, we were interested in the area of black-box optimization. 
-Many engineering simulations and problems exist in a complex problem space 
-without easy access to gradients, and often where function evaluation itself 
-is extremely expensive. In these kinds of situations, easy solutions like 
-gradient descent are out of scope, and others like Monte Carlo methods are 
+For our project, we were interested in the area of black-box optimization.
+Many engineering simulations and problems exist in a complex problem space
+without easy access to gradients, and often where function evaluation itself
+is extremely expensive. In these kinds of situations, easy solutions like
+gradient descent are out of scope, and others like Monte Carlo methods are
 prohibitively expensive.
 
-We wanted to explore the specific case of stateful black-boxes. These are 
-functions whose output is noisy, and whose noise depends on previous 
-parameters. This includes situations like government budgeting, where each 
-year feels the impact of previous years, or flying an airplane, where each 
+We wanted to explore the specific case of stateful black-boxes. These are
+functions whose output is noisy, and whose noise depends on previous
+parameters. This includes situations like government budgeting, where each
+year feels the impact of previous years, or flying an airplane, where each
 second the plane continues to feel the impact of previous control movements.
 
-By exploring various methods on these stateful models, we hope to gain an 
+By exploring various methods on these stateful models, we hope to gain an
 understanding for how existing methods fare in the presence of stateful models.
 
 # Related Work
 
 ## @bb-rnn and @chen2016learning
 
-These papers implement an LSTM model to learn how to minimize the function, 
-based on an approximation built from Gaussian processes. This method has the 
-advantage of learning latent factors that impact optimization, and so are 
-less dependent on the underlying response surface model used. Like other 
-papers, these papers investigate the performance of this method on noiseless 
-functions. The authors in both of these papers make claims about the 
-performance of their methods, which we wanted to evaluate in a slightly 
+These papers implement an LSTM model to learn how to minimize the function,
+based on an approximation built from Gaussian processes. This method has the
+advantage of learning latent factors that impact optimization, and so are
+less dependent on the underlying response surface model used. Like other
+papers, these papers investigate the performance of this method on noiseless
+functions. The authors in both of these papers make claims about the
+performance of their methods, which we wanted to evaluate in a slightly
 context.
 
 ## @hansen2010comparing
 
-There is a considerable amount of prior work in the area of black-box 
-optimization. This paper in particular compares 31 methods against the 
-BBOB-2009 functions, which vary in their complexity and their difficulty in 
+There is a considerable amount of prior work in the area of black-box
+optimization. This paper in particular compares 31 methods against the
+BBOB-2009 functions, which vary in their complexity and their difficulty in
 optimization. Generally, this paper found that the best method to use depends
-heavily on the dimensionality of the problem. In general, the more complex 
-the function, the tougher it is to optimize. We wanted to extend this 
-analysis to noisy functions, which this paper does not address. In 
-particular, we wanted to evaluate current methods against very noisy 
+heavily on the dimensionality of the problem. In general, the more complex
+the function, the tougher it is to optimize. We wanted to extend this
+analysis to noisy functions, which this paper does not address. In
+particular, we wanted to evaluate current methods against very noisy
 functions.
 
 # Description and Justification
 
-Our project involves testing various black-box optimization methods on 
-stateful functions. This means our project has essentially two components: 
-the models to train against, and the models to be trained. We selected both 
-on the basis of varying complexity, in order to get a broader understanding 
+Our project involves testing various black-box optimization methods on
+stateful functions. This means our project has essentially two components:
+the models to train against, and the models to be trained. We selected both
+on the basis of varying complexity, in order to get a broader understanding
 of the current space of black-box optimization.
 
 ## Algorithms
 
-We selected our algorithms on the basis of current state-of-the-art 
-optimization packages, as well as from trends in machine learning. These 
+We selected our algorithms on the basis of current state-of-the-art
+optimization packages, as well as from trends in machine learning. These
 models vary in their complexity, and very in turn in their performance.
 
 ### Random Search
 
-Random search is one of the simplest black box optimization algorithms. It
-randomly guesses points within the bounds and then takes the highest value as
-the best option. This is used as a baseline for the other algorithms.
+Random search is one of the simplest black box optimization algorithms. In a
+typically implementation it randomly guesses points within the bounds and then
+takes the smallest value as the best option.  Since we are modeling continuous
+processes, we don't ever take a fixed "best" value and always randomize at each
+iteration. This is used as a baseline for the other algorithms.
 
 ### Tree of Parzen Estimators
 
 ### Gradient Boosted Decision Trees
+
+One common solution to black box optimization is to train a model on top of all
+the sampled points and then minimize over the model to pick the next point. At
+each step our implementation trains a set of gradient boosted decision trees
+using the CatBoost library [@CatBoost]. To find the global minimium of the model
+we pick 100 random points within the search space and then use L-BFGS-B
+[@byrd1995limited] to find the local minimum. We use the best of those 100 local
+minima as the next search point.
+
+We test two versions of this model. The first has just the model parameters we're
+interested in, and the second additionally has the iteration number. Adding the
+iteration number provides a limited way to model the changing hidden state.
 
 ### Bayesian Optimization (Gaussian Processes)
 
@@ -168,7 +182,7 @@ actual control range.
 # Experiments and Analysis
 
 For all of our experiments, we initialized the models with five "free" random
-historical data points, and then used those models to predict the next 20 
+historical data points, and then used those models to predict the next 20
 data points, updating the models at each step.
 
 Commonly Bayesian Optimization methods start out with a series of random points
@@ -182,25 +196,25 @@ to a poor state before being able to recover.
 
 # Discussion and Future Work
 
-We found that existing methods are poor at dealing with complex, very 
-stateful models. This is especially obvious in the case of flying an 
-airplane: many models did worse than random. In the simpler case of a 
-momentum method, where the output of the function is not very impacted by 
+We found that existing methods are poor at dealing with complex, very
+stateful models. This is especially obvious in the case of flying an
+airplane: many models did worse than random. In the simpler case of a
+momentum method, where the output of the function is not very impacted by
 previous iterations, the black-box methods we implemented perform better.
 
-This is in line with the related work in the area. Many papers, such as 
-@hansen2010comparing, are restricted to noiseless functions. The most direct 
-approach to tackle this problem would be to create a model of the noise 
-itself. In the case of highly stateful functions, this model would 
-necessarily be complex. Given the methods we implemented do not attempt to 
-model the noise in the functions they optimize, it is not surprising that 
+This is in line with the related work in the area. Many papers, such as
+@hansen2010comparing, are restricted to noiseless functions. The most direct
+approach to tackle this problem would be to create a model of the noise
+itself. In the case of highly stateful functions, this model would
+necessarily be complex. Given the methods we implemented do not attempt to
+model the noise in the functions they optimize, it is not surprising that
 they perform poorly when the function is highly stateful.
 
-Our results are a modest sampling of methods, but clearly a larger sample of 
-more methods would be even better. Additionally, methods that involve 
-expected improvement are likely to perform well. Our model of government 
-budgeting is a simple momentum model, in reality, a more complex, multi-year 
-momentum in a higher number of dimensions would be a more accurate model of 
+Our results are a modest sampling of methods, but clearly a larger sample of
+more methods would be even better. Additionally, methods that involve
+expected improvement are likely to perform well. Our model of government
+budgeting is a simple momentum model, in reality, a more complex, multi-year
+momentum in a higher number of dimensions would be a more accurate model of
 the impact of government budgets.
 
 # References
