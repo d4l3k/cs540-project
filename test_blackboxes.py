@@ -134,8 +134,11 @@ def clear_predict():
 
 random_state = np.random.RandomState()
 
-def random_points(n):
-    return random_state.uniform(model.bounds[:, 0], model.bounds[:, 1], size=(n, model.bounds.shape[0]))
+def random_points(n, iter_feature=False):
+    data = random_state.uniform(model.bounds[:, 0], model.bounds[:, 1], size=(n, model.bounds.shape[0]))
+    if iter_feature:
+        data = np.hstack((data, np.ones((n, 1)) * total_predict_calls))
+    return data
 
 
 def tpe():
@@ -212,35 +215,52 @@ def random_search():
     report('Random Search', y, time.time() - start, total_predict_calls)
 
 
-def gbdt():
+def gbdt(iter_feature):
     """GBDT"""
     clear_predict()
     start = time.time()
 
-    x = random_points(init_years)
-    y = np.zeros(init_years)
+    def apply_iter(x):
+        if iter_feature:
+            x[len(x)-1] = total_predict_calls
+        return x
+
+    init_points = 2
+    x = random_points(init_points, iter_feature)
+    y = np.zeros(init_points)
+
+    num_features = len(model.bounds)
 
     # generate each initial year separately
-    for i in range(init_years):
-        y[i] = predict(np.reshape(x[i, :], (1, x.shape[1])))
+    for i in range(init_points):
+        y[i] = predict(np.reshape(x[i, :num_features], (1, num_features)))
 
     gbdt_model = catboost.CatBoostRegressor(verbose=False)
-    for i in range(num_years):
+    for i in range(init_years-init_points+num_years):
         gbdt_model.fit(x, y)
         x_tmps = []
-        for test_x in random_points(sample_points):
+        for test_x in random_points(sample_points, iter_feature):
+            bounds = model.bounds
+            if iter_feature:
+                bounds = np.vstack((bounds, [[total_predict_calls, total_predict_calls]]))
             res = scipy.optimize.minimize(lambda p_x:
-                    gbdt_model.predict([p_x])[0], test_x, bounds=model.bounds)
+                    gbdt_model.predict([apply_iter(p_x)])[0], test_x,
+                    bounds=bounds)
             if not res.success:
                 continue
-            x_tmps += [res.x]
+            x_tmps.append(apply_iter(res.x))
+
         best_i = int(np.argmin(gbdt_model.predict(x_tmps)))
         best_x = x_tmps[best_i]
         x = np.append(x, [best_x], axis=0)
-        y_tmp = predict([best_x])
+        y_tmp = predict([best_x[:num_features]])
         y = np.append(y, y_tmp)
 
-    report('GBDT', y[init_years:], time.time() - start, total_predict_calls)
+    method = 'GBDT'
+    if iter_feature:
+        method += ' (Iteration Feature)'
+
+    report(method, y[init_years:], time.time() - start, total_predict_calls)
 
 
 def lstm():
@@ -469,7 +489,9 @@ def main():
 
         if run_all or args.gbdt:
             print("running gbdt")
-            gbdt()
+            gbdt(False)
+            if args.iter_feature:
+                gbdt(True)
 
         if run_all or args.lstm:
             print("running lstm")
