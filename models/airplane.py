@@ -9,6 +9,8 @@ from pyfme.utils.trimmer import steady_state_trim
 from pyfme.utils.input_generator import Constant
 from pyfme.simulator import Simulation
 
+import matplotlib.pyplot as plt
+
 import numpy as np
 
 start = EarthPosition(x=0, y=0, height=10000)
@@ -29,6 +31,8 @@ class Model:
 
         for x in xs:
             start = self.sim.system.full_state.position.earth_coordinates.copy()
+            self.x.append(start[0])
+            self.height.append(-start[2])
 
             if self.verbose:
                 print(x, self.sim.system.full_state)
@@ -52,6 +56,8 @@ class Model:
         for control, limits in self.aircraft.control_limits.items():
             bounds.append(limits)
         self.bounds = np.array(bounds)
+        self.x = []
+        self.height = []
 
         self.atmosphere = ISA1976()
         self.gravity = VerticalConstant()
@@ -82,4 +88,19 @@ class Model:
             self.controls.append(v)
         self.sim = Simulation(self.aircraft, self.system, self.environment, controls)
 
+    def metadata(self):
+        return (self.x, self.height)
+
+    def plot(self, metadata):
+        plt.figure()
+        labels = []
+        for method, meta in metadata:
+            labels.append(method)
+            plt.plot(meta[0], meta[1])
+
+        plt.title('Airplane Path')
+        plt.xlabel('X position')
+        plt.ylabel('Height')
+        plt.legend(labels)
+        plt.show()
 

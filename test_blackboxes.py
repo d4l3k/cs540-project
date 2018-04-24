@@ -31,12 +31,12 @@ results = []
 
 def report(*args):
     global results
-    args = args + (epoch,)
+    args = args + (epoch, model.metadata())
     results.append(args)
     print_result(*args)
 
 
-def format_result(method, data, time_taken, predict_calls, epoch):
+def format_result(method, data, time_taken, predict_calls, epoch, metadata):
     return [method, np.sum(data), data[len(data) - 1], len(data),
             '\n'.join(sparklines(data)), time_taken, predict_calls, epoch]
 
@@ -95,6 +95,11 @@ def average_results():
 
 def graph_results():
     labels = []
+
+    metadata = []
+
+    plt.figure()
+
     for result in results:
         method = result[0]
         data = result[1]
@@ -105,11 +110,16 @@ def graph_results():
 
         labels.append(method)
         plt.plot(range(0,len(data)), data)
+
+        metadata.append((method, result[5]))
+
     plt.legend(labels)
     plt.title('Algorithm Performance (Smaller is better)')
     plt.xlabel('Iteration')
     plt.ylabel(model.label)
     plt.show()
+
+    model.plot(metadata)
 
 
 

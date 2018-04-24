@@ -25,3 +25,9 @@ class Model:
 
     def reset(self):
         self.last_y = None
+
+    def metadata(self):
+        return []
+
+    def plot(self, meta):
+        pass
