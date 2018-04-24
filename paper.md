@@ -25,6 +25,22 @@ popular black box algorithms on two stateful models.
 
 # Introduction
 
+For our project, we were interested in the area of black-box optimization. 
+Many engineering simulations and problems exist in a complex problem space 
+without easy access to gradients, and often where function evaluation itself 
+is extremely expensive. In these kinds of situations, easy solutions like 
+gradient descent are out of scope, and others like Monte Carlo methods are 
+prohibitively expensive.
+
+We wanted to explore the specific case of stateful black-boxes. These are 
+functions whose output is noisy, and whose noise depends on previous 
+parameters. This includes situations like government budgeting, where each 
+year feels the impact of previous years, or flying an airplane, where each 
+second the plane continues to feel the impact of previous control movements.
+
+By exploring various methods on these stateful models, we hope to gain an 
+understanding for how existing methods fare in the presence of stateful models.
+
 # Related Work
 
 # Description and Justification
