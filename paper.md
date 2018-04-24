@@ -20,7 +20,10 @@ Current research into global black box optimization of expensive functions
 focuses on stateless models such as machine learning hyper parameter
 optimization. Many real world problems can't be reset back to a clean state
 after a single evaluation. In this paper, we evaluate the performance of five
-popular black box algorithms on two stateful models.
+popular black box algorithms on two stateful models: governmental budgeting and
+flying an airplane. We find that current black-box optimization methods do not
+sufficiently deal with noisy functions, especially when that noise is highly
+dependent on previous parameters, and dominates the function output.
 \end{abstract}
 
 # Introduction
@@ -46,29 +49,39 @@ understanding for how existing methods fare in the presence of stateful models.
 ## @bb-rnn and @chen2016learning
 
 These papers implement an LSTM model to learn how to minimize the function, 
-based on an approximation built from Gaussian processes. The authors claim 
-great performance in their papers. In practice, the method they present is 
-very sensitive to initialization and to the kernel used. This is not 
-unexpected in the space of neural networks. We wanted to confirm the findings
-of the authors, and extend the comparison to other methods, and to stateful
-black-boxes.
+based on an approximation built from Gaussian processes. This method has the 
+advantage of learning latent factors that impact optimization, and so are 
+less dependent on the underlying response surface model used. Like other 
+papers, these papers investigate the performance of this method on noiseless 
+functions. The authors in both of these papers make claims about the 
+performance of their methods, which we wanted to evaluate in a slightly 
+context.
 
 ## @hansen2010comparing
 
 There is a considerable amount of prior work in the area of black-box 
 optimization. This paper in particular compares 31 methods against the 
-BBOB-2009 functions, which are particularly difficult to optimize. These 
-methods are not stateful, however, which is the drive of our project.
-
-The findings from this paper are in general that multi-modal, non-smooth, 
-high-dimensional functions are tough to optimize, while uni-modal, smooth, 
-low-dimensional functions are easier to optimize. Similarly, functions that 
-are highly stateful are likely tougher to optimize, as evidenced by our 
-sampling of methods.
+BBOB-2009 functions, which vary in their complexity and their difficulty in 
+optimization. Generally, this paper found that the best method to use depends
+heavily on the dimensionality of the problem. In general, the more complex 
+the function, the tougher it is to optimize. We wanted to extend this 
+analysis to noisy functions, which this paper does not address. In 
+particular, we wanted to evaluate current methods against very noisy 
+functions.
 
 # Description and Justification
 
+Our project involves testing various black-box optimization methods on 
+stateful functions. This means our project has essentially two components: 
+the models to train against, and the models to be trained. We selected both 
+on the basis of varying complexity, in order to get a broader understanding 
+of the current space of black-box optimization.
+
 ## Algorithms
+
+We selected our algorithms on the basis of current state-of-the-art 
+optimization packages, as well as from trends in machine learning. These 
+models vary in their complexity, and very in turn in their performance.
 
 ### Random Search
 
@@ -123,7 +136,8 @@ bounds for the range of values that can be accepted.
 ### Death Rate
 
 Many real life models, such as governmental budgeting are nearly impossible to
-evaluate so we had to come up with an approximation to it. We created a simple
+evaluate. Instead, we built a stateful model of a governmental budget, and used
+it as a target of various black-box optimization methods. We created a simple
 model by using the World Bank Development Indicators and training a Gradient
 Boosted Decision Tree to predict deathrate based off of expenditures in
 education, health, R&D and military [@WB]. To add a stateful component to this,
@@ -153,6 +167,10 @@ actual control range.
 
 # Experiments and Analysis
 
+For all of our experiments, we initialized the models with five "free" random
+historical data points, and then used those models to predict the next 20 
+data points, updating the models at each step.
+
 Commonly Bayesian Optimization methods start out with a series of random points
 to get an initial overview of the space. Our data shows that this leads to very
 poor performance with stateful models as 5 initial bad points can lead the model
@@ -163,5 +181,26 @@ to a poor state before being able to recover.
 ## Airplane
 
 # Discussion and Future Work
+
+We found that existing methods are poor at dealing with complex, very 
+stateful models. This is especially obvious in the case of flying an 
+airplane: many models did worse than random. In the simpler case of a 
+momentum method, where the output of the function is not very impacted by 
+previous iterations, the black-box methods we implemented perform better.
+
+This is in line with the related work in the area. Many papers, such as 
+@hansen2010comparing, are restricted to noiseless functions. The most direct 
+approach to tackle this problem would be to create a model of the noise 
+itself. In the case of highly stateful functions, this model would 
+necessarily be complex. Given the methods we implemented do not attempt to 
+model the noise in the functions they optimize, it is not surprising that 
+they perform poorly when the function is highly stateful.
+
+Our results are a modest sampling of methods, but clearly a larger sample of 
+more methods would be even better. Additionally, methods that involve 
+expected improvement are likely to perform well. Our model of government 
+budgeting is a simple momentum model, in reality, a more complex, multi-year 
+momentum in a higher number of dimensions would be a more accurate model of 
+the impact of government budgets.
 
 # References
