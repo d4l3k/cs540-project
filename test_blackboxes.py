@@ -22,7 +22,6 @@ from models import deathrate
 from models import airplane
 
 init_years = 5
-num_years = 20
 sample_points = 100
 epoch = 0
 
@@ -465,8 +464,12 @@ def main():
     parser.add_argument("--iter-feature", help="use iteration number as feature", action="store_true")
     parser.add_argument("--epochs", type=int, help="number of epochs to run", default=1)
     parser.add_argument("--mean", help="take the mean of the values", action="store_true")
+    parser.add_argument("--num-years", type=int, help="number of years to run for", default=20)
 
     args = parser.parse_args()
+
+    global num_years
+    num_years = args.num_years
 
     global model
     if args.airplane:
