@@ -54,7 +54,7 @@ used to fit a Long Short Term Memory neural network. This method essentially
 uses an LSTM to learn how to minimize the function, rather than using a 
 gradient.
 
-At ever step, the rnn $LSTM$ determines the next step to take.
+At every step, the rnn $LSTM$ determines the next step to take.
 
 \begin{align*}
 x_n, h_n &= LSTM(x_{n - 1}, y_{n - 1}, h_{n - 1})\\
