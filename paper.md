@@ -45,6 +45,36 @@ the best option. This is used as a baseline for the other algorithms.
 
 ### LSTM based Recurrent Neural Network
 
+We implemented the model as described in @bb-rnn. The problem
+ of 
+black box 
+optimization can be formulated as the problem of finding the sequence 
+containing the minimum value of a black box function. This formulation can be
+used to fit a Long Short Term Memory neural network. This method essentially 
+uses an LSTM to learn how to minimize the function, rather than using a 
+gradient.
+
+At ever step, the rnn $LSTM$ determines the next step to take.
+
+\begin{align*}
+x_n, h_n &= LSTM(x_{n - 1}, y_{n - 1}, h_{n - 1})\\
+y_n &= \psi(x_n)
+\end{align*}
+
+Where $\psi(x) = E[GP(x)]$, the expected value of the Gaussian process model at
+point $x$.
+
+Our implementation of this method uses Tensorflow 
+[@tensorflow2015-whitepaper], making use of its LSTM framework. We also 
+make use of GPflow [@GPflow2017] for creating our Gaussian processes.
+
+This method is obviously heavily dependent on the exact form of the Gaussian 
+process. We started with the simplest case of a "vanilla" Gaussian process using
+radial basis functions for the kernels. This approach yielded poor results, 
+since with only a few data points to train on, most of the function space is 
+predicted to be zero. Using a summed Matern and Linear kernel, performance can
+beat Bayesian optimization.
+
 ## Models
 
 To evaluate these algorithms we trained them on two stateful models. Each model
