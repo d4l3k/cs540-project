@@ -49,7 +49,9 @@ These papers implement an LSTM model to learn how to minimize the function,
 based on an approximation built from Gaussian processes. The authors claim 
 great performance in their papers. In practice, the method they present is 
 very sensitive to initialization and to the kernel used. This is not 
-unexpected in the space of neural networks.
+unexpected in the space of neural networks. We wanted to confirm the findings
+of the authors, and extend the comparison to other methods, and to stateful
+black-boxes.
 
 ## @hansen2010comparing
 
