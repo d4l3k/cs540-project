@@ -91,8 +91,6 @@ takes the smallest value as the best option.  Since we are modeling continuous
 processes, we don't ever take a fixed "best" value and always randomize at each
 iteration. This is used as a baseline for the other algorithms.
 
-### Tree of Parzen Estimators
-
 ### Gradient Boosted Decision Trees
 
 One common solution to black box optimization is to train a model on top of all
@@ -108,6 +106,8 @@ interested in, and the second additionally has the iteration number. Adding the
 iteration number provides a limited way to model the changing hidden state.
 
 ### Bayesian Optimization (Gaussian Processes)
+
+### Tree of Parzen Estimators
 
 ### LSTM based Recurrent Neural Network
 
@@ -216,5 +216,7 @@ expected improvement are likely to perform well. Our model of government
 budgeting is a simple momentum model, in reality, a more complex, multi-year
 momentum in a higher number of dimensions would be a more accurate model of
 the impact of government budgets.
+
+\newpage
 
 # References

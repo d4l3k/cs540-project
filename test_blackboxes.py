@@ -104,7 +104,7 @@ def graph_results():
         data = result[1]
         epoch = result[4]
 
-        if epoch > 0:
+        if epoch > 0 and not args.mean:
             method += ' (Epoch {})'.format(epoch)
 
         labels.append(method)
@@ -466,6 +466,7 @@ def main():
     parser.add_argument("--mean", help="take the mean of the values", action="store_true")
     parser.add_argument("--num-years", type=int, help="number of years to run for", default=20)
 
+    global args
     args = parser.parse_args()
 
     global num_years
