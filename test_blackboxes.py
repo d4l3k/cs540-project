@@ -285,10 +285,14 @@ class LSTMModel:
         self.time_steps = num_years
         self.init_samples = init_years
 
+        tf.reset_default_graph()
+        gpflow.reset_default_session()
+
         self.g_functions = []
         self.samples = []
         self.cell = rnn.BasicLSTMCell(self.num_units, forget_bias=1)
         self.gp_opt = gpflow.train.ScipyOptimizer()
+        self.opt = tf.train.AdamOptimizer()
         self.start = tf.placeholder(tf.float64, [self.BATCH_SIZE, self.d_input])
         self.feeds = {}
         self.sess = tf.Session()
@@ -354,7 +358,7 @@ class LSTMModel:
         y = y_sample
 
         # Generate our random points
-        for i in range(init_years):
+        for i in range(self.init_samples):
             # normalize the position
             x[i, :] = self._normalize_position(x_sample[i, :])
 
@@ -389,10 +393,10 @@ class LSTMModel:
         # Try to reduce the total number of deaths
         loss = tf.reduce_sum(tf.stack(predictions)) + 1000 * tf.reduce_sum(tf.stack(violations))
 
-        return loss
+        return loss, steps
 
     def _train(self, loss):
-        opt = tf.train.AdamOptimizer().minimize(loss, var_list=self.cell.trainable_variables)
+        train_loss = self.opt.minimize(loss, var_list=self.cell.trainable_variables)
 
         self.sess.run(tf.local_variables_initializer())
         self.sess.run(tf.global_variables_initializer(), feed_dict=self.feeds)
@@ -406,7 +410,7 @@ class LSTMModel:
             for b in range(self.BATCH_SIZE):
                 batch_start[b, :] = self._normalize_position(batch_start[b, :])
 
-            self.sess.run(opt, feed_dict={self.start: batch_start})
+            self.sess.run(train_loss, feed_dict={self.start: batch_start})
 
             if i % 10 == 0:
                 print("Loss:", self.sess.run(loss, feed_dict={self.start: batch_start}))
@@ -447,7 +451,7 @@ class LSTMModel:
 
         print("creating LSTM")
 
-        loss = self._build_rnn()
+        loss, steps = self._build_rnn()
 
         print("training")
 
@@ -456,23 +460,30 @@ class LSTMModel:
         # Test
         print("testing")
 
-        test_start = random_points(1)
+        # Start at a minimum found by the network
+
+        test_start = random_points(self.BATCH_SIZE)
+
+        test_steps = self.sess.run(steps, feed_dict={self.start: test_start})
 
         # Predict all these steps using our actual function
         test_actuals = []
         state = self.cell.zero_state(1, dtype=tf.float64)
 
-        step = test_start
+        step = np.stack([self._denormalize_position(test_steps[-1][0, :])])
 
         for i in range(num_years):
             if self._output_step_constraint_violation(step) != 0:
                 print("Step is outside bounds!")
+
+            print(step)
             actual = predict(step)
             test_actuals.append(float(actual))
+
             cell_input = np.concatenate((self._normalize_position(step), np.reshape(actual, (1, 1))), axis=1)
+
             step_ta, state = self.cell(tf.convert_to_tensor(cell_input), state)
             step = self._denormalize_position(self.sess.run(step_ta))
-            print(step)
 
         report('LSTM', test_actuals, time.time() - start_time, total_predict_calls)
 
