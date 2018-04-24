@@ -43,6 +43,27 @@ understanding for how existing methods fare in the presence of stateful models.
 
 # Related Work
 
+## @bb-rnn and @chen2016learning
+
+These papers implement an LSTM model to learn how to minimize the function, 
+based on an approximation built from Gaussian processes. The authors claim 
+great performance in their papers. In practice, the method they present is 
+very sensitive to initialization and to the kernel used. This is not 
+unexpected in the space of neural networks.
+
+## @hansen2010comparing
+
+There is a considerable amount of prior work in the area of black-box 
+optimization. This paper in particular compares 31 methods against the 
+BBOB-2009 functions, which are particularly difficult to optimize. These 
+methods are not stateful, however, which is the drive of our project.
+
+The findings from this paper are in general that multi-modal, non-smooth, 
+high-dimensional functions are tough to optimize, while uni-modal, smooth, 
+low-dimensional functions are easier to optimize. Similarly, functions that 
+are highly stateful are likely tougher to optimize, as evidenced by our 
+sampling of methods.
+
 # Description and Justification
 
 ## Algorithms
