@@ -91,7 +91,7 @@ takes the smallest value as the best option.  Since we are modeling continuous
 processes, we don't ever take a fixed "best" value and always randomize at each
 iteration. This is used as a baseline for the other algorithms.
 
-### Gradient Boosted Decision Trees
+### Gradient Boosted Decision Trees (GBDT)
 
 One common solution to black box optimization is to train a model on top of all
 the sampled points and then minimize over the model to pick the next point. At
@@ -106,6 +106,16 @@ interested in, and the second additionally has the iteration number. Adding the
 iteration number provides a limited way to model the changing hidden state.
 
 ### Bayesian Optimization (Gaussian Processes)
+
+This method uses Gaussian Processes to build a model of the original function
+which we then use to find the point to maximize the expected improvement. This
+is a very popular hyper parameter optimization algorithm and is used as the
+default at several large companies including Google
+[@Golovin:2017:GVS:3097983.3098043].
+For our tests, we use the BayesOpt library [@JMLR:v15:martinezcantin14a].
+
+We test the same two variants of input parameters for this model as we did with
+GBDT.
 
 ### Tree of Parzen Estimators
 
@@ -173,11 +183,11 @@ We used it to model flying a plane to a location. The model takes in the
 throttle as well as the position of the elevator, aileron and rudder and outputs
 the distance the plane has flown towards the target. This model has numerous
 stateful variables that need to be modeled including position, rotation,
-velocity, direction. There are also many nonlinearities due to air resistance
-and gravity.
+velocity, direction. There are also many nonlinearities due to things like air
+resistance and gravity.
 
 This model uses the Cessna 172 as a base and bounds the inputs to be match the
-actual control range.
+actual control range of the aircraft.
 
 # Experiments and Analysis
 
