@@ -117,7 +117,14 @@ For our tests, we use the BayesOpt library [@JMLR:v15:martinezcantin14a].
 We test the same two variants of input parameters for this model as we did with
 GBDT.
 
-### Tree of Parzen Estimators
+### Tree-structured Parzen Estimator
+
+A Tree-structured Parzen Estimator [@bergstra2011algorithms] is another
+algorithm that has fairly decent performance for hyper parameter optimization.
+We used the HyperOpt library [@bergstra2013hyperopt] with the TPE minimizer.
+
+This model was tested with only the input parameters due to inflexibility of the
+library.
 
 ### LSTM based Recurrent Neural Network
 
