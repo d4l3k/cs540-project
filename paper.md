@@ -18,7 +18,7 @@ header-includes:
 \begin{abstract}
 Current research into global black box optimization of expensive functions
 focuses on stateless models such as machine learning hyper parameter
-optimization. Many real world problems can't be reset back to a clean state
+optimization. Many real world problems cannot be reset back to a clean state
 after a single evaluation. In this paper, we evaluate the performance of five
 popular black box algorithms on two stateful models: governmental budgeting and
 flying an airplane. We find that current black-box optimization methods do not
@@ -102,9 +102,9 @@ approach to take in the case of stateful functions.
 ### Random Search
 
 Random search is one of the simplest black box optimization algorithms. In a
-typically implementation it randomly guesses points within the bounds and then
+typical implementation, it randomly guesses points within the bounds and then
 takes the smallest value as the best option.  Since we are modeling continuous
-processes, we don't ever take a fixed "best" value and always randomize at each
+processes, we do not ever take a fixed "best" value and always randomize at each
 iteration. This is used as a baseline for the other algorithms.
 
 ### Gradient Boosted Decision Trees (GBDT)
@@ -112,13 +112,13 @@ iteration. This is used as a baseline for the other algorithms.
 One common solution to black box optimization is to train a model on top of all
 the sampled points and then minimize over the model to pick the next point. At
 each step our implementation trains a set of gradient boosted decision trees
-using the CatBoost library [@CatBoost]. To find the global minimium of the model
+using the CatBoost library [@CatBoost]. To find the global minimum of the model
 we pick 100 random points within the search space and then use L-BFGS-B
 [@byrd1995limited] to find the local minimum. We use the best of those 100 local
 minima as the next search point.
 
 We test two versions of this model. The first has just the model parameters
-we're interested in, and the second additionally has the iteration number.
+we are interested in, and the second additionally has the iteration number.
 Adding the iteration number provides a limited way to model the changing hidden
 state.
 
@@ -167,7 +167,7 @@ creating our Gaussian processes.
 
 This method is obviously heavily dependent on the exact form of the Gaussian
 process. We started with the simplest case of a "vanilla" Gaussian process using
-radial basis functions for the kernels. This approach yielded poor results,
+radial basis functions for the kernels. This approach yielded poor results
 since with only a few data points to train on, most of the function space is
 predicted to be zero. Using a summed Matern and Linear kernel, performance can
 beat Bayesian optimization.
@@ -180,7 +180,7 @@ bounds for the range of values that can be accepted.
 
 ### Death Rate
 
-Many real life models, such as governmental budgeting are nearly impossible to
+Many real life models, such as governmental budgeting, are nearly impossible to
 evaluate. Instead, we built a stateful model of a governmental budget, and used
 it as a target of various black-box optimization methods. We created a simple
 model by using the World Bank Development Indicators and training a Gradient
@@ -190,7 +190,7 @@ we added momentum, such that changing the parameters produces lag with respect
 to the death rate.
 
 While this is a very simple model, it does provide some realistic behaviors.
-Many large systems have a high latency between cause and effect. We're also
+Many large systems have a high latency between cause and effect. We are also
 primarily interested in highlighting the differences between these algorithms.
 
 We bound the inputs to be within two times the maximum existing value for that
@@ -243,7 +243,7 @@ LSTM                                               312.352  7.56452  120.985
 
 ## Airplane
 
-The airplane model being more complex, it makes sense that every method
+With the airplane model being more complex, it makes sense that every method
 performed worse. Generally, no method performed better than random on our loss
 function, although the different methods we tried resulted in different paths
 taken by the plane. In particular, LSTM managed to fly the plane the furthest.
@@ -282,13 +282,13 @@ the function is highly stateful.
 
 Our results are a modest sampling of methods, but clearly a larger sample of
 more methods would be even better. Our model of government budgeting is a simple
-momentum model, in reality, a more complex, multi-year momentum in a higher
+momentum model, but in reality, a more complex, multi-year momentum in a higher
 number of dimensions would be a more accurate model of the impact of government
 budgets.
 
-One area for future exploration is time series models in particular. We 
-decided to investigate general black-box optimization algorithms, which 
-generalized poorly to heavily a heavily time-series function.
+One area for future exploration is time series models in particular. We
+decided to investigate general black-box optimization algorithms which
+generalized poorly to stateful and time-series functions.
 
 \newpage
 
