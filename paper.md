@@ -233,13 +233,13 @@ decision trees performed the best, followed by Bayesian optimization.
 
 Method                                       Dead per 1000    Final    Time (s)
 -----------------------------------------  ---------------  -------  ----------
+Bayesian Optimization                              169.943  4.82427  270.191
+Bayesian Optimization (Iteration Feature)          166.688  4.51994  230.342
+GBDT                                               156.194  3.2796   126.613
+GBDT (Iteration Feature)                           174.163  3.98914  133.977
+LSTM                                               312.352  7.56452  120.985
 Random Search                                      318.699  7.6137     0.157484
 Tree of Parzen Estimators                          274.014  7.35505    0.740803
-GBDT                                               156.194  3.2796   126.613
-Bayesian Optimization                              169.943  4.82427  270.191
-GBDT (Iteration Feature)                           174.163  3.98914  133.977
-Bayesian Optimization (Iteration Feature)          166.688  4.51994  230.342
-LSTM                                               312.352  7.56452  120.985
 
 ## Airplane
 
@@ -256,13 +256,13 @@ accurately learn much about the behavior of the function.
 
 Method                                       Distance    Final    Time (s)
 -----------------------------------------  ----------  -------  ----------
-Tree of Parzen Estimators                    386.751   35.2345     87.0953
 Bayesian Optimization                        951.158   55.0508    186.141
 Bayesian Optimization (Iteration Feature)    254.179   42.0604    100.786
-Random Search                                -45.2105  18.0915     65.4368
 GBDT                                         170.037   46.4255    266.083
 GBDT (Iteration Feature)                     828.039   56.438     186.172
 LSTM                                         483.213   67.5271    200.627
+Random Search                                -45.2105  18.0915     65.4368
+Tree of Parzen Estimators                    386.751   35.2345     87.0953
 
 # Discussion and Future Work
 
