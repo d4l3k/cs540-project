@@ -221,6 +221,13 @@ to a poor state before being able to recover.
 
 ## Death Rate
 
+The death rate model is the simpler of the two to model. In general, all 
+methods except for LSTM performed on average better than random. LSTM in 
+particular only sometimes managed to learn something about how to minimize 
+the actual function, which meant on average performance like random. In this 
+case, gradient-boosted decision trees performed the best, followed by 
+Bayesian optimization.
+
 ![](./deathrate.png)
 
 Method                                       Dead per 1000    Final    Time (s)
@@ -234,6 +241,13 @@ Bayesian Optimization (Iteration Feature)          166.688  4.51994  230.342
 LSTM                                               312.352  7.56452  120.985
 
 ## Airplane
+
+The airplane model being more complex, it makes sense that every method 
+performed worse. Generally, no method performed better than random on our 
+loss function, although the different methods we tried resulted in different 
+paths taken by the plane. In particular, LSTM managed to fly the plane the 
+furthest. The same effect is present here as well: five historical points is 
+too few to accurately learn much about the behavior of the function.
 
 ![](./airplane.png)
 
