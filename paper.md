@@ -69,6 +69,18 @@ analysis to noisy functions, which this paper does not address. In
 particular, we wanted to evaluate current methods against very noisy
 functions.
 
+## @jones1998efficient
+
+This earlier paper on black-box optimization explores the space of response 
+surfaces, and using those surfaces to select further points of interest. We 
+implement a method along these lines to compare against. This method involves
+measuring expected improvement, which is a combination of minimum value and 
+error at a certain point on the response surface. Using more robust 
+statistical methods to search the function space of a black-box function 
+makes sense, given the computational cost of evaluating the method itself. We
+wanted to extend this analysis to stateful black-box functions, as a kind of 
+baseline to compare other popular methods against.
+
 # Description and Justification
 
 Our project involves testing various black-box optimization methods on
