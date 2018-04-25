@@ -37,19 +37,19 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def report(*args):
+def report(*result):
     global results
-    args = args + (epoch, model.metadata())
-    results.append(args)
-    print_result(*args)
-    with open(args.out, "a") as myfile:
-        myfile.write(json.dumps(args, cls=NumpyEncoder))
+    result = result + (epoch, model.metadata())
+    results.append(result)
+    print_result(*result)
+    with open(args.output, "a") as myfile:
+        myfile.write(json.dumps(result, cls=NumpyEncoder))
         myfile.write('\n')
 
 
 def format_result(method, data, time_taken, predict_calls, epoch, metadata):
     return [method, np.sum(data), data[len(data) - 1], len(data),
-            '\n'.join(sparklines(data)), time_taken, predict_calls, epoch]
+            '\n'.join(sparklines(np.abs(data))), time_taken, predict_calls, epoch]
 
 
 def print_result_table(table):
@@ -103,6 +103,36 @@ def average_results():
         merged.append(merge(results))
 
     results = merged
+
+def trim_results():
+    global results
+
+    count = {}
+    for result in results:
+        method = result[0]
+        count[method] = count.get(method, 0) + 1
+
+    max = 100000000
+    for method, c in count.items():
+        if c < max:
+            max = c
+
+    filtered = []
+    kept = {}
+    for result in results:
+        method = result[0]
+        seen = kept.get(method, 0)
+        if seen >= max:
+            continue
+
+        kept[method] = seen + 1
+        filtered.append(result)
+
+    results = filtered
+
+    print('Trimmed results: kept {}, count {}'.format(kept, count))
+
+
 
 def graph_results():
     labels = []
@@ -513,9 +543,10 @@ def main():
     parser.add_argument("--iter-feature", help="use iteration number as feature", action="store_true")
     parser.add_argument("--epochs", type=int, help="number of epochs to run", default=1)
     parser.add_argument("--mean", help="take the mean of the values", action="store_true")
+    parser.add_argument("--trim", help="trim results to have same number of each", action="store_true")
     parser.add_argument("--num-years", type=int, help="number of years to run for", default=20)
     parser.add_argument("--load", type=str, help="load results file")
-    parser.add_argument("--out", type=str, help="output results file", default="results.txt")
+    parser.add_argument("--output", type=str, help="output results file", default="results.txt")
 
     global args
     args = parser.parse_args()
@@ -569,6 +600,9 @@ def main():
             LSTMModel().evaluate()
 
     print_results()
+
+    if args.trim:
+        trim_results()
 
     if args.mean:
         average_results()
