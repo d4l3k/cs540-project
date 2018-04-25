@@ -268,7 +268,8 @@ of decision trees, it performs well within the area it's seen before, but since
 the iteration count is always increasing the points sampled are always outside
 the model domain. With Bayesian Optimization, the model produced by the Gaussian
 processes is smooth outside the data domain and likely generalizes better when
-sampling outside.
+sampling outside. The iteration feature also allows for it to "forget" older
+points if they conflict with newer data.
 
 ![](./airplane.png)
 
@@ -309,6 +310,10 @@ budgets.
 One area for future exploration is time series models in particular. We
 decided to investigate general black-box optimization algorithms which
 generalized poorly to stateful and time-series functions.
+
+Another area for future exploration may be to do more feature engineering. We
+explored iteration count as a feature, but other things such as passing in the
+previously outputted value into the model may also improve results.
 
 \newpage
 
