@@ -213,13 +213,16 @@ actual control range of the aircraft.
 # Experiments and Analysis
 
 For all of our experiments, we initialized the models with five "free" random
-historical data points, and then used those models to predict the next 20
+historical data points, and then used those models to predict the next 40
 data points, updating the models at each step.
 
 Commonly Bayesian Optimization methods start out with a series of random points
 to get an initial overview of the space. Our data shows that this leads to very
 poor performance with stateful models as 5 initial bad points can lead the model
 to a poor state before being able to recover.
+
+The results below are the mean of 20 iterations. Individual runs tend to vary
+too much to get a clean comparison between methods.
 
 ## Death Rate
 
@@ -228,6 +231,10 @@ except for LSTM performed on average better than random. LSTM in particular only
 sometimes managed to learn something about how to minimize the actual function,
 which meant on average performance like random. In this case, gradient-boosted
 decision trees performed the best, followed by Bayesian optimization.
+
+Adding iteration count as a feature doesn't seem to improve accuracy with this
+model and in the case of GBDT makes it worse. This intuitively makes sense since
+with momentum only the previous iteration affects the result.
 
 ![](./deathrate.png)
 
@@ -243,12 +250,25 @@ Tree of Parzen Estimators                          274.014  7.35505    0.740803
 
 ## Airplane
 
+For these results "Distance" is the distance flown away from the target point.
+The smaller the number, the closer the plane was to the target point.
+
 With the airplane model being more complex, it makes sense that every method
 performed worse. Generally, no method performed better than random on our loss
 function, although the different methods we tried resulted in different paths
 taken by the plane. In particular, LSTM managed to fly the plane the furthest.
 The same effect is present here as well: five historical points is too few to
 accurately learn much about the behavior of the function.
+
+Adding the iteration feature has mixed results with these models. With Bayesian
+Optimization, it significantly improves how far the plane was able to fly towards
+the target. With GBDT, it has much worse performance. This is likely due to how
+the models handle points outside their training domain. Since GBDT is based off
+of decision trees, it performs well within the area it's seen before, but since
+the iteration count is always increasing the points sampled are always outside
+the model domain. With Bayesian Optimization, the model produced by the Gaussian
+processes is smooth outside the data domain and likely generalizes better when
+sampling outside.
 
 ![](./airplane.png)
 
