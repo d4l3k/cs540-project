@@ -42,7 +42,7 @@ def report(*args):
     args = args + (epoch, model.metadata())
     results.append(args)
     print_result(*args)
-    with open("results.txt", "a") as myfile:
+    with open(args.out, "a") as myfile:
         myfile.write(json.dumps(args, cls=NumpyEncoder))
         myfile.write('\n')
 
@@ -515,6 +515,7 @@ def main():
     parser.add_argument("--mean", help="take the mean of the values", action="store_true")
     parser.add_argument("--num-years", type=int, help="number of years to run for", default=20)
     parser.add_argument("--load", type=str, help="load results file")
+    parser.add_argument("--out", type=str, help="output results file", default="results.txt")
 
     global args
     args = parser.parse_args()
