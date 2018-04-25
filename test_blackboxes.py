@@ -14,6 +14,7 @@ import scipy.optimize
 import gpflow
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import json
 
 from sparklines import sparklines
 from tabulate import tabulate
@@ -29,11 +30,21 @@ epoch = 0
 results = []
 
 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
 def report(*args):
     global results
     args = args + (epoch, model.metadata())
     results.append(args)
     print_result(*args)
+    with open("results.txt", "a") as myfile:
+        myfile.write(json.dumps(args, cls=NumpyEncoder))
+        myfile.write('\n')
 
 
 def format_result(method, data, time_taken, predict_calls, epoch, metadata):
@@ -503,6 +514,7 @@ def main():
     parser.add_argument("--epochs", type=int, help="number of epochs to run", default=1)
     parser.add_argument("--mean", help="take the mean of the values", action="store_true")
     parser.add_argument("--num-years", type=int, help="number of years to run for", default=20)
+    parser.add_argument("--load", type=str, help="load results file")
 
     global args
     args = parser.parse_args()
@@ -515,6 +527,12 @@ def main():
         model = airplane.Model(args.verbose)
     else:
         model = deathrate.Model()
+
+    if args.load is not None:
+        print('Loading file')
+        with open(args.load) as f:
+            for line in f.readlines():
+                results.append(json.loads(line.strip()))
 
     run_all = not (args.tpe or args.bayesian or args.random_search or args.gbdt or args.lstm)
 

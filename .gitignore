@@ -107,3 +107,4 @@ learn/
 
 # IntelliJ files that shouldn't be checked in
 .idea/workspace.xml
+results.txt
