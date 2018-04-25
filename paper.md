@@ -71,14 +71,14 @@ functions.
 
 ## @jones1998efficient
 
-This earlier paper on black-box optimization explores the space of response 
-surfaces, and using those surfaces to select further points of interest. We 
+This earlier paper on black-box optimization explores the space of response
+surfaces, and using those surfaces to select further points of interest. We
 implement a method along these lines to compare against. This method involves
-measuring expected improvement, which is a combination of minimum value and 
-error at a certain point on the response surface. Using more robust 
-statistical methods to search the function space of a black-box function 
+measuring expected improvement, which is a combination of minimum value and
+error at a certain point on the response surface. Using more robust
+statistical methods to search the function space of a black-box function
 makes sense, given the computational cost of evaluating the method itself. We
-wanted to extend this analysis to stateful black-box functions, as a kind of 
+wanted to extend this analysis to stateful black-box functions, as a kind of
 baseline to compare other popular methods against.
 
 # Description and Justification
@@ -221,7 +221,33 @@ to a poor state before being able to recover.
 
 ## Death Rate
 
+![](./deathrate.png)
+
+Method                                       Dead per 1000    Final    Time (s)
+-----------------------------------------  ---------------  -------  ----------
+Random Search                                      318.699  7.6137     0.157484
+Tree of Parzen Estimators                          274.014  7.35505    0.740803
+GBDT                                               156.194  3.2796   126.613
+Bayesian Optimization                              169.943  4.82427  270.191
+GBDT (Iteration Feature)                           174.163  3.98914  133.977
+Bayesian Optimization (Iteration Feature)          166.688  4.51994  230.342
+LSTM                                               312.352  7.56452  120.985
+
 ## Airplane
+
+![](./airplane.png)
+
+![](./airplane-path.png)
+
+Method                                       Distance    Final    Time (s)
+-----------------------------------------  ----------  -------  ----------
+Tree of Parzen Estimators                    386.751   35.2345     87.0953
+Bayesian Optimization                        951.158   55.0508    186.141
+Bayesian Optimization (Iteration Feature)    254.179   42.0604    100.786
+Random Search                                -45.2105  18.0915     65.4368
+GBDT                                         170.037   46.4255    266.083
+GBDT (Iteration Feature)                     828.039   56.438     186.172
+LSTM                                         483.213   67.5271    200.627
 
 # Discussion and Future Work
 
