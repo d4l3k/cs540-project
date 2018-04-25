@@ -287,7 +287,9 @@ Tree of Parzen Estimators                    386.751   35.2345     87.0953
 
 We investigated the impact of a greater number of starting samples with the
 airplane model. We compared performance for LSTM, TPE, and random search in
-this setting. This did not seem to improve performance at all.
+this setting. This did not seem to improve the performance of those 
+algorithms in terms of loss, but LSTM manages to stay closer to random than 
+TPE in the actual flight path of the plane.
 
 ![](airplane-15.png)
 
