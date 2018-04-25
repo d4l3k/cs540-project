@@ -23,7 +23,7 @@ from tensorflow.contrib import rnn
 from models import deathrate
 from models import airplane
 
-init_years = 5
+init_years = 15
 sample_points = 100
 epoch = 0
 
