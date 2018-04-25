@@ -268,7 +268,8 @@ of decision trees, it performs well within the area it's seen before, but since
 the iteration count is always increasing the points sampled are always outside
 the model domain. With Bayesian Optimization, the model produced by the Gaussian
 processes is smooth outside the data domain and likely generalizes better when
-sampling outside.
+sampling outside. The iteration feature also allows for it to "forget" older
+points if they conflict with newer data.
 
 ![](./airplane.png)
 
@@ -284,8 +285,8 @@ LSTM                                         483.213   67.5271    200.627
 Random Search                                -45.2105  18.0915     65.4368
 Tree of Parzen Estimators                    386.751   35.2345     87.0953
 
-We investigated the impact of a greater number of starting samples with the 
-airplane model. We compared performance for LSTM, TPE, and random search in 
+We investigated the impact of a greater number of starting samples with the
+airplane model. We compared performance for LSTM, TPE, and random search in
 this setting. This did not seem to improve performance at all.
 
 ![](airplane-15.png)
@@ -317,6 +318,11 @@ budgets.
 One area for future exploration is time series models in particular. We
 decided to investigate general black-box optimization algorithms which
 generalized poorly to stateful and time-series functions.
+
+Another area for future exploration may be to do more feature engineering. We
+explored iteration count as a feature, but other things such as passing in the
+previously outputted value or previous parameters into the model may also
+improve results.
 
 \newpage
 
