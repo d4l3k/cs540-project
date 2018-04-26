@@ -57,7 +57,7 @@ learning latent factors that impact optimization, and so are less dependent on
 the underlying response surface model used. Like other papers, these papers
 investigate the performance of this method on noiseless functions. The authors
 in both of these papers make claims about the performance of their methods,
-which we wanted to evaluate in a slightly context.
+which we wanted to evaluate in a stateful context.
 
 ## @hansen2010comparing
 
